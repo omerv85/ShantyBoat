@@ -456,6 +456,7 @@ const SND={ctx:null,master:null,muted:false,noise:null,
     o.connect(lp).connect(g).connect(this.master);o.start(t+0.3);o.stop(t+2.9);v.start(t+0.3);v.stop(t+2.9);
     this.tone(t+0.3,3.2,'sine',55,38,0.35);
   },
+  thud(v){if(!this.ctx)return;const t=this.now();this.tone(t,0.22,'sine',110,42,0.55*v);this.burst(t,0.12,'lowpass',500,0.8,0.4*v);this.burst(t,0.08,'bandpass',1400,1.5,0.15*v);},
   ping(){if(!this.ctx)return;const t=this.now();this.tone(t,0.18,'sine',1320,0,0.12);this.tone(t+0.2,0.25,'sine',1760,0,0.1);},
   rescue(){if(!this.ctx)return;const t=this.now();[523,659,784,1047].forEach((f,i)=>this.tone(t+i*0.11,0.3,'triangle',f,0,0.11));},
   // outboard motor: continuous putt-putt whose pitch & volume follow speed
@@ -704,16 +705,8 @@ function update(dt){
       if(Math.random()<0.35){const e=rot(f,L.motor,0);smoke(e[0],e[1],15,[90,90,92],rand(2,3));}}
     else{const st=rot(f,-L.radius*0.9,rand(-L.radius*.4,L.radius*.4));ring(st[0],st[1],3,22,1.4,0.28);}}
 
-  // ruins collision
-  for(const r of ruinsNear(boat.x,boat.y,250)){
-    const dx=boat.x-r.x,dy=boat.y-r.y;let lx=dx*r.f.c+dy*r.f.s,ly=-dx*r.f.s+dy*r.f.c;
-    const qx=clamp(lx,-r.w/2,r.w/2),qy=clamp(ly,-r.d/2,r.d/2);let ex=lx-qx,ey=ly-qy;const d=Math.hypot(ex,ey),rad=L.radius*0.85;
-    if(d<rad){
-      if(d<1e-3){const px=r.w/2-Math.abs(lx),py=r.d/2-Math.abs(ly);if(px<py){lx=Math.sign(lx||1)*(r.w/2+rad);}else{ly=Math.sign(ly||1)*(r.d/2+rad);}}
-      else{lx+=ex/d*(rad-d);ly+=ey/d*(rad-d);}
-      boat.x=r.x+lx*r.f.c-ly*r.f.s;boat.y=r.y+lx*r.f.s+ly*r.f.c;boat.vx*=0.85;boat.vy*=0.85;
-    }
-  }
+  // ruins collision: the boat's real footprint (oriented box) against each building
+  resolveRuinCollisions(L,dt);
 
   // items
   for(let i=items.length-1;i>=0;i--){
@@ -775,12 +768,50 @@ function update(dt){
   SC=baseScale()*zoom;
   const ck=1-Math.exp(-dt*5);
   cam.x=lerp(cam.x,boat.x,ck);cam.y=lerp(cam.y,boat.y,ck);
-  cam.sx=building?Math.sin(T*55)*1.6:0;cam.sy=building?Math.cos(T*47)*1.2:0;
+  cam.shake=Math.max(0,(cam.shake||0)-dt);
+  const shk=building?1:cam.shake>0?cam.shake*8:0;
+  cam.sx=shk?Math.sin(T*55)*1.6*shk:0;cam.sy=shk?Math.cos(T*47)*1.2*shk:0;
 
   // autosave
   if(((T*10)|0)%50===0&&((T-dt)*10|0)%50!==0)save();
 }
 
+// Separating-axis test between the boat's oriented footprint and a building's.
+// Returns the push-out vector for the boat, or null when they don't overlap.
+function boatRuinOverlap(L,r){
+  const e=boatExtent(L),c=Math.cos(boat.a),sn=Math.sin(boat.a);
+  const lcx=(e.x0+e.x1)/2,lcy=(e.y0+e.y1)/2,hx=(e.x1-e.x0)/2+2,hy=(e.y1-e.y0)/2+2;
+  const bx=boat.x+lcx*c-lcy*sn,by=boat.y+lcx*sn+lcy*c;
+  const A=[[c,sn],[-sn,c]],B=[[r.f.c,r.f.s],[-r.f.s,r.f.c]],Bh=[r.w/2+1,r.d/2+1];
+  const dx=r.x-bx,dy=r.y-by;let best=1e9,nx=0,ny=0;
+  for(const ax of [A[0],A[1],B[0],B[1]]){
+    const ra=hx*Math.abs(A[0][0]*ax[0]+A[0][1]*ax[1])+hy*Math.abs(A[1][0]*ax[0]+A[1][1]*ax[1]);
+    const rb=Bh[0]*Math.abs(B[0][0]*ax[0]+B[0][1]*ax[1])+Bh[1]*Math.abs(B[1][0]*ax[0]+B[1][1]*ax[1]);
+    const d=dx*ax[0]+dy*ax[1],o=ra+rb-Math.abs(d);
+    if(o<=0)return null;
+    if(o<best){best=o;const sg=d>0?-1:1;nx=ax[0]*sg;ny=ax[1]*sg;}
+  }
+  return [nx*best,ny*best,nx,ny];
+}
+let bumpCd=0;
+function resolveRuinCollisions(L,dt){
+  bumpCd-=dt;
+  const e=boatExtent(L),reach=Math.hypot(Math.max(-e.x0,e.x1),Math.max(-e.y0,e.y1))+200;
+  for(let pass=0;pass<3;pass++){
+    let hit=false;
+    for(const r of ruinsNear(boat.x,boat.y,reach)){
+      const o=boatRuinOverlap(L,r);if(!o)continue;hit=true;
+      boat.x+=o[0];boat.y+=o[1];
+      const vn=boat.vx*o[2]+boat.vy*o[3];
+      if(vn<0){ // cancel motion into the wall (slide along it) with a little bounce
+        if(-vn>22&&bumpCd<=0){bumpCd=0.6;SND.thud(Math.min(1,-vn/80));cam.shake=0.25;
+          const cx=boat.x-o[2]*30,cy=boat.y-o[3]*30;splash(cx,cy,6,25);}
+        boat.vx-=vn*o[2]*1.25;boat.vy-=vn*o[3]*1.25;
+      }
+    }
+    if(!hit)break;
+  }
+}
 function playerWorld(z){const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a);const w=rot(f,L.player[0],L.player[1]);return [w[0],w[1],z+boat.bob];}
 // the crew member who throws the grapple: the front survivor from level 5, otherwise the rower
 function grapPos(){const L=LEVELS[level];return L.front||L.player;}
