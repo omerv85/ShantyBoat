@@ -1,0 +1,9 @@
+{
+  "name": "Shanty Boat",
+  "short_name": "Shanty Boat",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#24464d",
+  "theme_color": "#24464d"
+}

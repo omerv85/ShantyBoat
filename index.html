@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Shanty Boat</title>
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Pirata+One&display=swap" rel="stylesheet">
 <style>
@@ -20,33 +21,43 @@
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
   canvas{display:block;touch-action:none;position:fixed;inset:0}
   #hud{position:fixed;left:0;right:0;top:0;pointer-events:none;
-    padding:calc(env(safe-area-inset-top) + 10px) 12px 0;display:flex;flex-direction:column;gap:8px;align-items:center}
-  #toprow{display:flex;align-items:center;gap:8px;width:100%;max-width:520px}
-  #health{flex:1;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--panel-edge);
+    padding:calc(env(safe-area-inset-top) + 10px) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));
+    display:flex;flex-direction:column;gap:8px}
+  #toprow{display:flex;align-items:center;gap:8px;width:100%}
+  #health{flex:1;max-width:520px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--panel-edge);
     border-radius:999px;padding:6px 10px 6px 8px;backdrop-filter:blur(4px)}
+  #pause{margin-left:auto}
   #health svg{width:20px;height:20px;flex:none}
   #hbar{flex:1;height:12px;border-radius:999px;background:rgba(0,0,0,.45);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
   #hfill{height:100%;width:100%;border-radius:999px;background:var(--good);transition:background-color .4s}
-  #health.low{animation:lowpulse 1s infinite}
-  @keyframes lowpulse{50%{border-color:var(--bad);box-shadow:0 0 12px rgba(226,85,63,.6)}}
+  #health.low{animation:lowpulse .9s infinite}
+  #health.low #hfill{animation:barflash .9s infinite}
+  #health.crit{animation-duration:.5s}
+  #health.crit #hfill{animation-duration:.5s}
+  #health.low svg{animation:beat .9s infinite}
+  #health.crit svg{animation-duration:.5s}
+  @keyframes lowpulse{50%{border-color:var(--bad);box-shadow:0 0 14px rgba(226,85,63,.75)}}
+  @keyframes barflash{0%,100%{opacity:1;filter:none}50%{opacity:.25;filter:brightness(1.8)}}
+  @keyframes beat{0%,40%,100%{transform:scale(1)}15%{transform:scale(1.3)}}
+  #hudrow{display:flex;justify-content:space-between;align-items:flex-start;width:100%}
+  #needs{display:flex;gap:6px}
+  #mats{display:flex;flex-direction:column;gap:5px;align-items:stretch}
   .iconbtn{pointer-events:auto;width:40px;height:40px;border-radius:50%;border:1px solid var(--panel-edge);
     background:var(--panel);color:var(--ink);font-size:18px;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
   .iconbtn svg{width:20px;height:20px}
-  #counters{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:520px}
   .ctr{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--panel-edge);
-    border-radius:12px;padding:5px 9px 5px 6px;font-weight:700;font-size:15px;min-width:58px;position:relative;
+    border-radius:12px;padding:5px 9px 5px 6px;font-weight:700;font-size:15px;min-width:62px;position:relative;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.6)}
   .ctr svg{width:22px;height:22px;flex:none}
   .ctr.use{pointer-events:auto;cursor:pointer;border-color:rgba(127,211,107,.35)}
-  .ctr.use::after{content:"+";position:absolute;right:-5px;top:-6px;width:15px;height:15px;border-radius:50%;
-    background:var(--good);color:#12301a;font-size:12px;line-height:15px;text-align:center;font-weight:900}
   .ctr.use:active{transform:scale(.94)}
   .ctr.pop{animation:pop .35s ease-out}
   @keyframes pop{40%{transform:scale(1.22);background:rgba(255,230,160,.35)}}
   .ctr.empty{opacity:.55}
-  .lbl{position:absolute;left:0;right:0;bottom:-13px;font-size:9px;font-weight:600;letter-spacing:.06em;
-    text-transform:uppercase;opacity:.7;text-align:center}
+  .lbl{font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.7;margin-left:auto;padding-left:2px}
 
+  #fs{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:5}
+  .iconbtn.hidden{display:none}
   #upgrade{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(env(safe-area-inset-bottom) + 16px);
     pointer-events:auto;border:2px solid rgba(255,230,180,.25);border-radius:16px;padding:9px 14px 10px;cursor:pointer;
     background:linear-gradient(#6b4a2b,#4a321d);color:var(--ink);font:inherit;text-align:left;
@@ -61,7 +72,7 @@
   #upgrade:active{transform:scale(.96)}
   @keyframes ready{50%{box-shadow:0 0 22px rgba(242,193,78,.75),0 4px 14px rgba(0,0,0,.45)}}
 
-  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 118px);transform:translate(-50%,-8px);
+  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 250px);transform:translate(-50%,-8px);
     background:rgba(20,28,30,.82);border:1px solid var(--panel-edge);padding:8px 14px;border-radius:12px;
     font-size:14px;font-weight:600;opacity:0;transition:opacity .3s, transform .3s;pointer-events:none;
     max-width:86vw;text-align:center}
@@ -91,17 +102,23 @@
       <svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11.2A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.8C20 15.8 12 21 12 21z" fill="#e2553f" stroke="#7a1f14" stroke-width="1.2"/></svg>
       <div id="hbar"><div id="hfill"></div></div>
     </div>
+    <button class="iconbtn" id="pause" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
     <button class="iconbtn" id="mute" aria-label="Toggle sound"></button>
   </div>
-  <div id="counters">
-    <div class="ctr" id="c-wood"><svg viewBox="0 0 24 24"><rect x="2" y="8" width="17" height="8" rx="1.5" fill="#9b6a3c" stroke="#5e3a1c"/><ellipse cx="19" cy="12" rx="3" ry="4" fill="#d7a96b" stroke="#5e3a1c"/><ellipse cx="19" cy="12" rx="1.2" ry="1.8" fill="none" stroke="#8a5a2c"/><path d="M4 11h9M6 13.5h8" stroke="#6e4522"/></svg><b id="n-wood">0</b><span class="lbl">wood</span></div>
-    <div class="ctr" id="c-bottles"><svg viewBox="0 0 24 24"><path d="M10 3h4v3l2.2 3v12a1 1 0 0 1-1 1H8.8a1 1 0 0 1-1-1V9L10 6z" fill="#bfe6f2" fill-opacity=".85" stroke="#3d8aa3"/><rect x="9.6" y="1.5" width="4.8" height="2.6" rx=".6" fill="#2f78c4"/><path d="M10 10v8" stroke="#fff" stroke-opacity=".8" stroke-linecap="round"/></svg><b id="n-bottles">0</b><span class="lbl">bottles</span></div>
+  <div id="hudrow">
+   <div id="needs">
     <div class="ctr use" id="c-food"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="15" rx="2" fill="#b9bfc4" stroke="#5d6569"/><rect x="5" y="9" width="14" height="7" fill="#c8402f"/><ellipse cx="12" cy="5.2" rx="7" ry="2" fill="#e3e7ea" stroke="#5d6569"/><circle cx="12" cy="12.5" r="2" fill="#f2c14e"/></svg><b id="n-food">0</b><span class="lbl">food</span></div>
     <div class="ctr use" id="c-water"><svg viewBox="0 0 24 24"><path d="M10 3h4v3l2.2 3v12a1 1 0 0 1-1 1H8.8a1 1 0 0 1-1-1V9L10 6z" fill="#d6f0fb" stroke="#2b6f99"/><path d="M8 12h8v9H8z" fill="#3fa2ea"/><rect x="9.6" y="1.5" width="4.8" height="2.6" rx=".6" fill="#e8eef2" stroke="#2b6f99" stroke-width=".6"/></svg><b id="n-water">0</b><span class="lbl">water</span></div>
-    <div class="ctr" id="c-misc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="#c9ced3" stroke-width="3.4" stroke-dasharray="2.6 2.5"/><circle cx="12" cy="12" r="4.2" fill="#9aa2a8"/><circle cx="12" cy="12" r="1.6" fill="#3a4044"/></svg><b id="n-misc">0</b><span class="lbl">parts</span></div>
+   </div>
+   <div id="mats">
+    <div class="ctr" id="c-wood"><svg viewBox="0 0 24 24"><path d="M1.5 15.5L17 7.5l5.5 2.6L7 18.2z" fill="#c99a62" stroke="#5e3a1c" stroke-linejoin="round"/><path d="M7 18.2v2.3l15.5-8.1v-2.3z" fill="#8a5a2e" stroke="#5e3a1c" stroke-linejoin="round"/><path d="M5 15.6l12.4-6.4M8.6 16.3l10.6-5.5" stroke="#8a5f34" stroke-width=".9"/><circle cx="5.2" cy="16.4" r=".7" fill="#3b3b3b"/><circle cx="18.6" cy="9.4" r=".7" fill="#3b3b3b"/></svg><b id="n-wood">0</b><span class="lbl">wood</span></div>
+    <div class="ctr" id="c-bottles"><svg viewBox="0 0 24 24"><path d="M10 3h4v3l2.2 3v12a1 1 0 0 1-1 1H8.8a1 1 0 0 1-1-1V9L10 6z" fill="#bfe6f2" fill-opacity=".85" stroke="#3d8aa3"/><rect x="9.6" y="1.5" width="4.8" height="2.6" rx=".6" fill="#2f78c4"/><path d="M10 10v8" stroke="#fff" stroke-opacity=".8" stroke-linecap="round"/></svg><b id="n-bottles">0</b><span class="lbl">plastic</span></div>
+    <div class="ctr" id="c-misc"><svg viewBox="0 0 24 24"><defs><linearGradient id="gSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef1f4"/><stop offset=".5" stop-color="#9aa3ab"/><stop offset="1" stop-color="#555e66"/></linearGradient></defs><circle cx="8.6" cy="8.4" r="6" fill="none" stroke="#2fa3d8" stroke-width="2.6"/><circle cx="8.6" cy="8.4" r="6" fill="none" stroke="#a8e4ff" stroke-width=".55" stroke-dasharray="1.4 1.1"/><circle cx="7.2" cy="14.4" r="5.2" fill="none" stroke="#e0559a" stroke-width="2.6"/><circle cx="7.2" cy="14.4" r="5.2" fill="none" stroke="#ffb3d6" stroke-width=".55" stroke-dasharray="1.4 1.1"/><path d="M3.1 18.2L1.4 20.4" stroke="#e0559a" stroke-width="1.6" stroke-linecap="round"/><path d="M1.4 20.4l-.9 1.3M1.4 20.4l-.2 1.6M1.4 20.4l-1.3.7" stroke="#d07a3a" stroke-width=".6" stroke-linecap="round"/><circle cx="16.2" cy="15.2" r="6" fill="none" stroke="url(#gSteel)" stroke-width="2.4" stroke-dasharray="1.75 1.4"/><circle cx="16.2" cy="15.2" r="4.9" fill="url(#gSteel)" stroke="#3f474e" stroke-width=".5"/><circle cx="16.2" cy="15.2" r="2.8" fill="none" stroke="#6b747c" stroke-width=".6"/><circle cx="16.2" cy="15.2" r="1.3" fill="#262b30"/></svg><b id="n-misc">0</b><span class="lbl">parts</span></div>
+   </div>
   </div>
 </div>
 
+<button class="iconbtn hidden" id="fs" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 <button id="upgrade" class="hidden"></button>
 <div id="toast"></div>
 
@@ -111,6 +128,13 @@
   <p class="hint">Drag anywhere to row. Drift close to wood, bottles and crates and your grapple does the rest.</p>
   <button class="btn" id="btn-start">Set Adrift</button>
   <button class="btn secondary hidden" id="btn-new" style="display:none">New Raft</button>
+</div>
+
+<div id="pause-ov" class="overlay hidden">
+  <h2>Paused</h2>
+  <p>The sea will wait for you.</p>
+  <button class="btn" id="btn-resume">Resume</button>
+  <button class="btn secondary" id="btn-restart">New Raft</button>
 </div>
 
 <div id="over" class="overlay hidden">
@@ -210,23 +234,56 @@ const BOTTLES=[[190,228,240],[170,220,190],[150,200,235],[215,235,240]];
 const CAPS=['#2f78c4','#d23d2c','#e8e8e8','#2c9c4a','#f2c14e'];
 
 // ---------- game data ----------
+const MAIN=[0,0,54,54], SIDES=[[0,61,30,30],[0,-61,30,30]], FRONT=[61,0,30,30];
+// hull outline (rowboat, levels 7+) and catamaran pontoon outline, local coords, counter-clockwise
+const HULL=[[-31,-27],[56,-27],[90,0],[56,27],[-31,27]];
+const PONTOON=[[-40,-9],[38,-9],[64,0],[38,9],[-40,9]];
 const LEVELS=[null,
-  {rects:[[0,0,34,34]],radius:21,collect:24,player:[0,0]},
-  {rects:[[0,0,54,54]],radius:31,collect:34,player:[-21,0],tent:true,bottles:true},
-  {rects:[[0,0,54,54],[0,61,30,30],[0,-61,30,30]],radius:42,collect:44,player:[-21,0],tent:true,bottles:true,planks:true},
-  {rects:[[0,0,54,54],[0,61,30,30],[0,-61,30,30]],radius:42,collect:44,player:[-23,0],shack:true,bottles:true,planks:true},
+  {rects:[[0,0,34,34]],radius:21,player:[0,0]},
+  {rects:[MAIN],radius:31,player:[-21,0],tent:true,bottles:true},
+  {rects:[MAIN,...SIDES],radius:42,player:[-21,0],tent:true,bottles:true,planks:true},
+  {rects:[MAIN,...SIDES],radius:42,player:[-23,0],shack:true,bottles:true,planks:true},
+  {rects:[MAIN,...SIDES],radius:42,player:[-23,0],shack:true,bottles:true,planks:true},
+  {rects:[MAIN,...SIDES,FRONT],radius:48,player:[-23,0],front:[61,0],shack:true,bottles:true,planks:true,frontPlanks:true},
+  {rects:[MAIN,...SIDES,FRONT],radius:48,player:[-21,0],front:[61,0],shack:true,bottles:true,planks:true,frontPlanks:true,motor:-32},
+  {rects:SIDES,hull:true,radius:50,player:[-21,0],front:[60,0],shack:true,bottles:true,planks:true,motor:-35},
+  {rects:[],hull:true,cats:true,radius:54,player:[-21,0],front:[60,0],shack:true,bottles:true,motor:-35},
+  {rects:[],hull:true,cats:true,radius:54,player:[-21,0],front:[60,0],fisher:[30,-13],shack:true,bottles:true,motor:-35},
+  {rects:[[-56,0,40,32]],sternRaft:true,hull:true,cats:true,radius:60,player:[-68,0],front:[60,0],fisher:[30,-13],farmer:[-47,9],pot:[-47,-9],shack:true,bottles:true,motor:-82},
 ];
-const MAXLEVEL=4;
-const COSTS={2:{wood:8,bottles:5},3:{wood:16,bottles:10},4:{wood:24,bottles:14}};
-const DESC={2:'A bigger raft with a driftwood tent',3:'Outrigger rafts lashed to the sides',4:'The tent becomes a sturdy shack'};
-const ZOOMS=[1,1,0.9,0.8,0.8];
-const DRAIN=0.55, EAT=30, DRINK=25;
+const MAXLEVEL=11;
+const MAP_LEVEL=5; // from this level on the boat has a mini map
+// QUICK_TEST: cheap upgrades & short waits so the level progression can be tested fast. Set to false for real balance.
+const QUICK_TEST=true;
+const COSTS=QUICK_TEST
+  ?{2:{wood:2,bottles:1},3:{wood:3,bottles:2},4:{wood:4,bottles:2},5:{misc:1},7:{misc:2},8:{wood:5,bottles:3},9:{wood:6,bottles:3}}
+  :{2:{wood:8,bottles:5},3:{wood:16,bottles:10},4:{wood:24,bottles:14},5:{misc:5},7:{misc:10},8:{wood:32,bottles:18},9:{wood:40,bottles:24}};
+const RESCUE_WAIT=QUICK_TEST?3:7;
+const DESC={2:'A bigger raft with a driftwood tent',3:'Outrigger rafts lashed to the sides',4:'The tent becomes a sturdy shack',
+  5:'A mini map, rigged up from scrap parts',
+  6:'A rescued survivor joins you on a new front raft and works the grapple',7:'An outboard motor — no more paddling',
+  8:'A proper rowboat hull with wooden sides',9:'Catamaran pontoons replace the side rafts',
+  10:'A fisher joins the crew and catches fish for food',
+  11:'A farmer and a tomato plant join on a new stern raft'};
+const ZOOMS=[1,1,0.9,0.8,0.8,0.8,0.74,0.74,0.72,0.68,0.68,0.62];
+const DRAIN=0.55, EAT=30, DRINK=25, LOW=30, CRIT=10;
+const STYLE1={rag:'#8b7a57',patch:'#6d5d40',legs:'#4e4232',hair:'#3a2a1c',band:'#9c3b2e',skin:'#cf9c74'};
+const STYLE2={rag:'#5f7480',patch:'#4a5c66',legs:'#3d3b36',hair:'#a5673a',band:'#2f6f8f',skin:'#d9a882'};
+const STYLE3={rag:'#7c7040',patch:'#5e5530',legs:'#45402c',hair:'#d6d4cc',band:'#c9a227',skin:'#c48a62'};
+const STYLE4={rag:'#56728a',patch:'#7a5a3a',legs:'#3b4858',hair:'#5a3a22',band:'#5a3a22',skin:'#d09a70',hat:true};
+// stranded people found at sea: reaching level 4 (or 8) spawns one; grappling them aboard gives the next level
+const RESCUES={
+  5:{next:6,style:STYLE2,fisher:false,msg:'Your mini map spotted someone stranded at sea! Follow the ! on the map.',done:'You rescued a fellow survivor! Lashing their raft to the front…'},
+  9:{next:10,style:STYLE3,fisher:true,msg:'Your mini map spotted someone fishing from a raft! Follow the ! on the map.',done:'The fisher climbs aboard with their pole!'},
+  10:{next:11,style:STYLE4,farmer:true,msg:'Your mini map spotted a farmer adrift! Follow the ! on the map.',done:'The farmer and the tomato plant join your boat!'}};
 
 let state='menu', T=0, level=1, health=100, survived=0;
 let inv={wood:0,bottles:0,food:0,water:0,misc:0};
 const boat={x:0,y:0,vx:0,vy:0,a:-Math.PI*0.75,bob:0,row:0,lastCos:0,fx:1,wakeT:0};
-let items=[], parts=[], texts=[], gulls=[];
+let items=[], parts=[], texts=[], gulls=[], schools=[];
 let building=null, usedJoystick=false, lowHintAt=-99;
+let hbT=0, beatFlash=0, survivorT=-1, dieT=-1;
+const FISH={st:'idle',t:0,cd:1.5,school:null,bx:0,by:0,bz:0,caught:false,tip:null};
 const G={st:'idle',item:null,t:0,dur:0,cd:0.6,hx:0,hy:0,hz:0,sx:0,sy:0};
 
 // ---------- ruins (drowned city, deterministic per cell) ----------
@@ -265,7 +322,8 @@ function makeItem(x,y){
   if(kind==='wood'){it.col=pick(WOODS);it.len=rand(20,30);it.r=15;}
   if(kind==='bottle'){it.col=pick(BOTTLES);it.cap=pick(CAPS);it.r=8;}
   if(kind==='crate'){it.col=Math.random()<0.7?C.crate:C.orange;it.r=11;}
-  if(kind==='junk'){it.sub=pick(['tire','bag','can','foam','net']);it.r=8;it.col=pick([[200,60,50],[60,120,180],[190,190,190]]);}
+  if(kind==='junk'){it.sub=pick(['tire','bag','can','foam','net','blackbag','blackbag']);it.r=8;it.col=pick([[200,60,50],[60,120,180],[190,190,190]]);
+    if(Math.random()<0.3&&it.sub!=='can')it.gull={ph:rand(6),fx:Math.random()<0.5?1:-1};}
   return it;
 }
 function spawnItems(initial){
@@ -382,7 +440,37 @@ const SND={ctx:null,master:null,muted:false,noise:null,
     this.tone(t,0.22,'sine',2650,0,0.035);this.tone(t,0.18,'sine',3720,0,0.02);
   },
   upgrade(){if(!this.ctx)return;const t=this.now()+0.05;this.chainsaw(t,1.35);
-    [0,0.27,0.54,0.92,1.19].forEach(d=>this.hammer(t+1.5+d));}
+    [0,0.27,0.54,0.92,1.19].forEach(d=>this.hammer(t+1.5+d));},
+  // "lub-dub" heartbeat; v scales loudness
+  heartbeat(v){if(!this.ctx)return;const t=this.now();
+    this.tone(t,0.16,'sine',72,40,0.9*v);this.burst(t,0.09,'lowpass',160,0.7,0.5*v);
+    this.tone(t+0.17,0.14,'sine',62,36,0.7*v);this.burst(t+0.17,0.08,'lowpass',140,0.7,0.35*v);},
+  // dying: a last gasp, then a long sinking moan with a deep drone
+  dying(){if(!this.ctx)return;const c=this.ctx,t=this.now();
+    this.burst(t,0.35,'bandpass',900,1.2,0.25,1600);
+    const o=c.createOscillator(),g=c.createGain(),lp=c.createBiquadFilter();o.type='triangle';
+    o.frequency.setValueAtTime(330,t+0.3);o.frequency.exponentialRampToValueAtTime(70,t+2.6);
+    const v=c.createOscillator(),vg=c.createGain();v.frequency.value=5.5;vg.gain.value=9;v.connect(vg).connect(o.frequency);
+    lp.type='lowpass';lp.frequency.setValueAtTime(1800,t);lp.frequency.exponentialRampToValueAtTime(300,t+2.6);
+    g.gain.setValueAtTime(0,t+0.3);g.gain.linearRampToValueAtTime(0.22,t+0.5);g.gain.exponentialRampToValueAtTime(0.001,t+2.8);
+    o.connect(lp).connect(g).connect(this.master);o.start(t+0.3);o.stop(t+2.9);v.start(t+0.3);v.stop(t+2.9);
+    this.tone(t+0.3,3.2,'sine',55,38,0.35);
+  },
+  ping(){if(!this.ctx)return;const t=this.now();this.tone(t,0.18,'sine',1320,0,0.12);this.tone(t+0.2,0.25,'sine',1760,0,0.1);},
+  rescue(){if(!this.ctx)return;const t=this.now();[523,659,784,1047].forEach((f,i)=>this.tone(t+i*0.11,0.3,'triangle',f,0,0.11));},
+  // outboard motor: continuous putt-putt whose pitch & volume follow speed
+  engine(on,k){
+    if(!this.ctx)return;const c=this.ctx;
+    if(!this.eng){if(!on)return;
+      const o=c.createOscillator(),lp=c.createBiquadFilter(),am=c.createGain(),g=c.createGain();
+      o.type='sawtooth';o.frequency.value=42;lp.type='lowpass';lp.frequency.value=420;am.gain.value=0.55;g.gain.value=0;
+      const l=c.createOscillator(),lg=c.createGain();l.type='square';l.frequency.value=9;lg.gain.value=0.45;l.connect(lg).connect(am.gain);
+      o.connect(lp).connect(am).connect(g).connect(this.master);o.start();l.start();
+      this.eng={o,l,g};}
+    const t=c.currentTime,e=this.eng;
+    e.g.gain.setTargetAtTime(on?0.05+0.09*k:0,t,0.25);
+    e.o.frequency.setTargetAtTime(40+26*k,t,0.3);e.l.frequency.setTargetAtTime(8+9*k,t,0.3);
+  }
 };
 
 // ---------- input: floating touch joystick + keyboard ----------
@@ -406,7 +494,7 @@ cv.addEventListener('pointermove',e=>{
 });
 const endJoy=e=>{if(e.pointerId===joy.id){joy.active=false;joy.id=null;joy.vx=joy.vy=0;}};
 cv.addEventListener('pointerup',endJoy);cv.addEventListener('pointercancel',endJoy);
-addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key===' '&&state==='play')tryUpgrade();});
+addEventListener('keydown',e=>{const kk=e.key.toLowerCase();if(kk==='p'||kk==='escape'){setPaused(state==='play');return;}if(state!=='play')return;keys[kk]=true;if(e.key===' '&&state==='play')tryUpgrade();});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
 function inputVec(){
   let x=joy.vx,y=joy.vy;
@@ -418,7 +506,7 @@ function inputVec(){
 }
 
 // ---------- HUD ----------
-const ICON_WOOD=$('c-wood').querySelector('svg').outerHTML, ICON_BOTTLE=$('c-bottles').querySelector('svg').outerHTML;
+const ICONS={wood:$('c-wood').querySelector('svg').outerHTML,bottles:$('c-bottles').querySelector('svg').outerHTML,misc:$('c-misc').querySelector('svg').outerHTML};
 const shown={};
 function pop(k){const e=$('c-'+k);e.classList.remove('pop');void e.offsetWidth;e.classList.add('pop');}
 let upKey='';
@@ -427,22 +515,21 @@ function updateHUD(){
     $('c-'+k).classList.toggle('empty',inv[k]===0);}}
   const hf=$('hfill');hf.style.width=health.toFixed(1)+'%';
   hf.style.backgroundColor=health>55?'#7fd36b':health>28?'#f2c14e':'#e2553f';
-  $('health').classList.toggle('low',health<28);
+  $('health').classList.toggle('low',health<LOW);$('health').classList.toggle('crit',health<=CRIT);
   const ub=$('upgrade');
-  if(level>=MAXLEVEL||building||state!=='play'){ub.classList.add('hidden');upKey='';return;}
-  const c=COSTS[level+1],ready=inv.wood>=c.wood&&inv.bottles>=c.bottles;
-  const key=level+'|'+inv.wood+'|'+inv.bottles;
+  if(level>=MAXLEVEL||building||state!=='play'||dieT>=0||!COSTS[level+1]){ub.classList.add('hidden');upKey='';return;}
+  const c=COSTS[level+1],ks=Object.keys(c),ready=ks.every(k=>inv[k]>=c[k]);
+  const key=level+'|'+ks.map(k=>inv[k]).join('|');
   if(key!==upKey){upKey=key;
-    ub.innerHTML=`<div class="t">⚒ Upgrade Home</div><div class="c">
-      <span class="${inv.wood>=c.wood?'ok':''}">${ICON_WOOD}${Math.min(inv.wood,c.wood)}/${c.wood}</span>
-      <span class="${inv.bottles>=c.bottles?'ok':''}">${ICON_BOTTLE}${Math.min(inv.bottles,c.bottles)}/${c.bottles}</span></div>`;
+    ub.innerHTML=`<div class="t">${level+1===7?'⚙ Add a Motor':level+1===5?'🧭 Add a Mini Map':'⚒ Upgrade Home'}</div><div class="c">`+
+      ks.map(k=>`<span class="${inv[k]>=c[k]?'ok':''}">${ICONS[k]}${Math.min(inv[k],c[k])}/${c[k]}</span>`).join('')+`</div>`;
     ub.classList.toggle('ready',ready);ub.classList.remove('hidden');}
 }
 let toastT=null;
 function toast(msg,ms){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms||2600);}
 
 function consume(k){
-  if(state!=='play')return;
+  if(state!=='play'||dieT>=0)return;
   if(inv[k]<=0){toast(k==='food'?'No food tins. Look for floating crates.':'No fresh water. Look for floating crates.');SND.deny();return;}
   if(health>=99.5){toast('You are not hungry or thirsty right now.');return;}
   inv[k]--;health=Math.min(100,health+(k==='food'?EAT:DRINK));SND.gulp();
@@ -452,6 +539,30 @@ function consume(k){
 $('c-food').addEventListener('pointerdown',e=>{e.stopPropagation();SND.init();consume('food');});
 $('c-water').addEventListener('pointerdown',e=>{e.stopPropagation();SND.init();consume('water');});
 $('upgrade').addEventListener('click',()=>{SND.init();tryUpgrade();});
+function setPaused(p){
+  if(p&&state==='play'&&dieT<0){state='paused';$('pause-ov').classList.remove('hidden');joy.active=false;joy.vx=joy.vy=0;
+    for(const k in keys)keys[k]=false;if(SND.ctx)SND.ctx.suspend();save();}
+  else if(!p&&state==='paused'){state='play';$('pause-ov').classList.add('hidden');if(SND.ctx)SND.ctx.resume();}
+}
+// ---------- full screen ----------
+const fsEl=document.documentElement;
+const fsSupported=()=>!!(fsEl.requestFullscreen||fsEl.webkitRequestFullscreen);
+const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+const isMobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+function enterFs(){
+  if(!fsSupported()||isFs())return;
+  try{const r=(fsEl.requestFullscreen||fsEl.webkitRequestFullscreen).call(fsEl,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{});}catch(_){}
+  try{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('portrait').catch(()=>{});}catch(_){}
+}
+function updateFsBtn(){$('fs').classList.toggle('hidden',!fsSupported()||isFs());}
+document.addEventListener('fullscreenchange',updateFsBtn);document.addEventListener('webkitfullscreenchange',updateFsBtn);
+$('fs').addEventListener('click',e=>{e.stopPropagation();enterFs();});
+// browsers only allow full screen from a user gesture: on phones, go full screen on the very first touch
+if(isMobile)document.addEventListener('pointerdown',enterFs,{capture:true,once:true});
+updateFsBtn();
+$('pause').addEventListener('click',()=>{SND.init();setPaused(state==='play');});
+$('btn-resume').addEventListener('click',()=>setPaused(false));
+$('btn-restart').addEventListener('click',()=>{$('pause-ov').classList.add('hidden');clearSave();if(SND.ctx)SND.ctx.resume();newGame(null);});
 const MUTE_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
 const MUTE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
 function setMuteIcon(){$('mute').innerHTML=SND.muted?MUTE_OFF:MUTE_ON;}
@@ -460,25 +571,40 @@ try{SND.muted=localStorage.getItem('shanty_mute')==='1';}catch(_){}
 setMuteIcon();
 
 // ---------- upgrade ----------
+const RES_NAME={wood:'wood',bottles:'plastic',misc:'parts'};
 function tryUpgrade(){
-  if(state!=='play'||building||level>=MAXLEVEL)return;
+  if(state!=='play'||building||dieT>=0||level>=MAXLEVEL||!COSTS[level+1])return;
   const c=COSTS[level+1];
-  if(inv.wood<c.wood||inv.bottles<c.bottles){
-    const nw=Math.max(0,c.wood-inv.wood),nb=Math.max(0,c.bottles-inv.bottles);
-    toast('Still need '+[nw?nw+' wood':'',nb?nb+' bottles':''].filter(Boolean).join(' and ')+'.');SND.deny();return;
-  }
-  inv.wood-=c.wood;inv.bottles-=c.bottles;
+  const miss=Object.keys(c).filter(k=>inv[k]<c[k]).map(k=>(c[k]-inv[k])+' '+RES_NAME[k]);
+  if(miss.length){toast('Still need '+miss.join(' and ')+'.');SND.deny();return;}
+  for(const k in c)inv[k]-=c[k];
   building={t:0,dur:2.9,next:level+1};
-  SND.upgrade();toast('Sawing and hammering…',2400);
+  SND.upgrade();toast(level+1===7?'Bolting on a motor…':level+1===5?'Rigging up a mini map…':'Sawing and hammering…',2400);
 }
 function finishUpgrade(){
   level=building.next;building=null;
   const L=LEVELS[level];
   for(let i=0;i<40;i++){const a=rand(6.3),d=rand(L.radius);chip(boat.x+Math.cos(a)*d,boat.y+Math.sin(a)*d,rand(4,20),pick([C.log,C.plank,C.tent]));}
   splash(boat.x,boat.y,10,40);ring(boat.x,boat.y,L.radius,40,1.2,0.5);
-  toast('Home upgraded! '+DESC[level]+'.',3400);
-  if(level>=MAXLEVEL)setTimeout(()=>{if(state==='play')toast('More shanty upgrades coming soon.',3000);},3800);
+  toast('Level '+level+'! '+DESC[level]+'.',3600);
+  if(RESCUES[level])survivorT=RESCUE_WAIT;
+  if(level>=MAXLEVEL)setTimeout(()=>{if(state==='play')toast('More shanty upgrades coming soon.',3000);},4200);
   save();
+}
+// ---------- survivor rescue (level 4 -> 5) ----------
+function survivorItem(){return items.find(i=>i.kind==='survivor');}
+function spawnSurvivor(){
+  // place it ahead of the boat, in view, so the player notices the waving
+  for(let k=0;k<60;k++){
+    const a=rand(Math.PI*2),d=rand(650,900);
+    const x=boat.x+Math.cos(a)*d,y=boat.y+Math.sin(a)*d;
+    if(insideRuin(x,y,40))continue;
+    const sp=P(x,y,0);if(sp[0]>-90&&sp[0]<W+90&&sp[1]>-90&&sp[1]<H+90)continue; // never pop up in view
+    const R=RESCUES[level];
+    items.push({kind:'survivor',x,y,a:rand(6.3),ph:rand(10),bz:0,taken:false,r:18,next:R.next,style:R.style,fisher:R.fisher,farmer:R.farmer,done:R.done});
+    toast(R.msg,4000);SND.ping();return true;
+  }
+  return false;
 }
 
 // ---------- save ----------
@@ -492,11 +618,25 @@ function newGame(s){
   health=s?clamp(s.health,20,100):100; survived=s?s.survived||0:0;
   boat.x=s?s.x:0;boat.y=s?s.y:0;boat.a=s?s.a:-Math.PI*0.75;boat.vx=boat.vy=0;
   items=[];parts=[];texts=[];building=null;G.st='idle';G.item=null;G.cd=0.8;
+  survivorT=RESCUES[level]?RESCUE_WAIT:-1;hbT=0;beatFlash=0;dieT=-1;FISH.st='idle';FISH.cd=1.5;
   cam.x=boat.x;cam.y=boat.y;zoom=ZOOMS[level];
   spawnItems(true);
   gulls=[];for(let i=0;i<4;i++)gulls.push(newGull(true));
+  schools=[];for(let i=0;i<3;i++)schools.push(newSchool(true));
   for(const k in shown)delete shown[k];upKey='';
   state='play';
+}
+function newSchool(initial){
+  const a=rand(6.3),d=initial?rand(160,650):rand(800,1000);
+  const x=boat.x+Math.cos(a)*d,y=boat.y+Math.sin(a)*d;
+  const n=6+(Math.random()*10|0),fish=[];
+  for(let i=0;i<n;i++)fish.push({ox:rand(-24,24),oy:rand(-15,15),ph:rand(6),sz:rand(0.8,1.25)});
+  return {x,y,h:Math.atan2(boat.y-y,boat.x-x)+rand(-0.9,0.9),sp:rand(16,28),fish,ph:rand(6),flee:0,col:pick([[14,40,48],[20,50,56],[28,58,52]])};
+}
+function gullTakeoff(it){
+  it.gull=null;const a=Math.atan2(it.y-boat.y,it.x-boat.x)+rand(-0.5,0.5),v=rand(55,75);
+  gulls.push({x:it.x,y:it.y,z:4,vz:55,ph:rand(6),vx:Math.cos(a)*v,vy:Math.sin(a)*v,circle:false,extra:true,cr:0,ca:0});
+  SND.gull();for(let i=0;i<4;i++)drop(it.x,it.y,2,rand(-15,15),rand(-15,15),rand(20,40),'rgba(225,245,250,.9)',1.2,0.6);
 }
 function newGull(initial){
   const a=rand(6.3),d=initial?rand(100,600):900;
@@ -512,15 +652,30 @@ function update(dt){
   survived+=dt;
   const L=LEVELS[level];
   // health
-  health-=DRAIN*dt*(building?0.3:1);
-  if(health<28 && T-lowHintAt>20 && (inv.food||inv.water)){lowHintAt=T;toast('Weak… tap the food or water counters to eat & drink.',3400);}
-  if(health<=0){health=0;gameOver();return;}
+  beatFlash=Math.max(0,beatFlash-dt*2.2);
+  if(dieT<0){
+    health-=DRAIN*dt*(building?0.3:1);
+    if(health<LOW && T-lowHintAt>20 && (inv.food||inv.water)){lowHintAt=T;toast('Weak… tap the food or water counters to eat & drink.',3400);}
+    if(health<=0){health=0;dieT=0;SND.dying();G.st='idle';if(G.item){G.item.taken=false;G.item=null;}toast('You collapse from hunger and thirst…',3000);}
+    // heartbeat below 30%, faster & louder below 10%
+    if(health<LOW&&dieT<0){hbT-=dt;if(hbT<=0){const crit=health<=CRIT;hbT=crit?0.5:0.95;SND.heartbeat(crit?1:0.5);beatFlash=1;}}
+    else hbT=0;
+  } else {
+    // fainting: the rower slumps over and lies flat, then the game ends
+    const pd=dieT;dieT+=dt;survived-=dt;
+    crewList(L).forEach(c=>{const tf=fallTime(c.o.idx)+FALL_DUR;
+      if(pd<tf&&dieT>=tf){const d=fallDest(c.pl),w=rot(frame(boat.x,boat.y,boat.a),d[0],d[1]);
+        splash(w[0],w[1],16,48);ring(w[0],w[1],5,32,1.8,0.55);ring(w[0],w[1],2,18,2.4,0.4);SND.splash(0.5);}});
+    if(dieT>fallTime(crewList(L).length-1)+FALL_DUR+2.4){gameOver();return;}
+  }
+  // fellow survivor appears a few seconds after reaching level 4
+  if(RESCUES[level]&&!building&&dieT<0&&survivorT>=0){survivorT-=dt;if(survivorT<0&&!survivorItem()&&!spawnSurvivor())survivorT=2;}
 
   // movement
-  const [ix,iy,im]=building?[0,0,0]:inputVec();
+  const [ix,iy,im]=building||dieT>=0?[0,0,0]:inputVec();
   let tx=0,ty=0;
   if(im>0.08){let wx=ix+2*iy,wy=2*iy-ix;const m=Math.hypot(wx,wy)||1;tx=wx/m*im;ty=wy/m*im;}
-  const maxV=78-level*3;
+  const maxV=L.motor?100:78-level*3;
   const acc=1-Math.exp(-dt*(im>0.08?1.8:0.9));
   boat.vx=lerp(boat.vx,tx*maxV,acc);boat.vy=lerp(boat.vy,ty*maxV,acc);
   // slow ocean current
@@ -533,16 +688,21 @@ function update(dt){
   }
   boat.bob=Math.sin(T*1.7)*0.9;
   // rowing animation & strokes
-  if(sp>8||im>0.08){
+  if(!L.motor&&dieT<0&&(sp>8||im>0.08)){
     boat.row+=dt*(3.2+sp*0.05);
     const c=Math.cos(boat.row);
     if(boat.lastCos<=0&&c>0){const b=oarBlade();splash(b[0],b[1],5,22);SND.row();}
     boat.lastCos=c;
   }
+  // outboard motor: sound, prop wash & exhaust
+  SND.engine(!!L.motor&&state==='play'&&dieT<0,clamp(sp/100,0,1));
   // wake
   boat.wakeT-=dt;
-  if(sp>14&&boat.wakeT<=0){boat.wakeT=0.12;const f=frame(boat.x,boat.y,boat.a);
-    const st=rot(f,-L.radius*0.9,rand(-L.radius*.4,L.radius*.4));ring(st[0],st[1],3,22,1.4,0.28);}
+  if(sp>14&&boat.wakeT<=0){boat.wakeT=L.motor?0.07:0.12;const f=frame(boat.x,boat.y,boat.a);
+    if(L.motor){const m=rot(f,L.motor-4,rand(-2,2));ring(m[0],m[1],3,30,1.6,0.4);
+      drop(m[0],m[1],1,rand(-1,1)*10-boat.vx*0.3,rand(-1,1)*10-boat.vy*0.3,rand(20,40),'rgba(235,250,252,.9)',rand(1,2),0.7);
+      if(Math.random()<0.35){const e=rot(f,L.motor,0);smoke(e[0],e[1],15,[90,90,92],rand(2,3));}}
+    else{const st=rot(f,-L.radius*0.9,rand(-L.radius*.4,L.radius*.4));ring(st[0],st[1],3,22,1.4,0.28);}}
 
   // ruins collision
   for(const r of ruinsNear(boat.x,boat.y,250)){
@@ -561,13 +721,16 @@ function update(dt){
     it.bz=Math.sin(T*1.8+it.ph)*1.1;
     if(it!==G.item){it.x+=(3+Math.sin(it.ph+T*0.2)*2)*dt;it.y+=(1.5+Math.cos(it.ph+T*0.17)*2)*dt;it.a+=Math.sin(it.ph)*0.04*dt;}
     const dx=it.x-boat.x,dy=it.y-boat.y,d=Math.hypot(dx,dy);
+    if(it.kind==='survivor'){it.a+=dt*0.05;continue;}
     if(d>1350){items.splice(i,1);continue;}
     if(it.kind==='junk'&&d<L.radius+it.r){const push=(L.radius+it.r-d);it.x+=dx/(d||1)*push;it.y+=dy/(d||1)*push;}
+    if(it.gull&&d<L.radius+95)gullTakeoff(it);
   }
   spawnItems(false);
 
   // grapple
   updateGrapple(dt,L);
+  if(L.fisher)updateFishing(dt,L);
 
   // building
   if(building){
@@ -590,12 +753,22 @@ function update(dt){
   for(let i=texts.length-1;i>=0;i--){texts[i].life-=dt;if(texts[i].life<=0)texts.splice(i,1);}
 
   // gulls
-  for(let i=0;i<gulls.length;i++){const g=gulls[i];
+  for(let i=gulls.length-1;i>=0;i--){const g=gulls[i];
+    if(g.vz){g.z+=g.vz*dt;if(g.z>=135)g.vz=0;}
     if(g.circle&&Math.hypot(g.x-boat.x,g.y-boat.y)<500){g.ca+=dt*0.5;g.x+=(Math.cos(g.ca)*g.cr*0.5+g.vx*0.3)*dt;g.y+=(Math.sin(g.ca)*g.cr*0.5+g.vy*0.3)*dt;}
     else{g.x+=g.vx*dt;g.y+=g.vy*dt;}
-    g.ph+=dt*(5+Math.sin(T+i));
-    if(Math.hypot(g.x-boat.x,g.y-boat.y)>1300)gulls[i]=newGull(false);
+    g.ph+=dt*(g.vz?15:5+Math.sin(T+i));
+    if(Math.hypot(g.x-boat.x,g.y-boat.y)>1300){if(g.extra)gulls.splice(i,1);else gulls[i]=newGull(false);}
   }
+  // schools of fish: drift through the view, dart away from the boat
+  for(let i=schools.length-1;i>=0;i--){const s=schools[i];
+    const dx=s.x-boat.x,dy=s.y-boat.y,d=Math.hypot(dx,dy);
+    if(d<L.radius+70&&s.flee<=0){s.flee=1.8;s.h=Math.atan2(dy,dx)+rand(-0.4,0.4);}
+    s.flee-=dt;s.h+=Math.sin(T*0.4+s.ph)*0.25*dt;
+    const v=s.sp*(s.flee>0?3.2:1);s.x+=Math.cos(s.h)*v*dt;s.y+=Math.sin(s.h)*v*dt;
+    if(d>1400)schools.splice(i,1);
+  }
+  while(schools.length<4)schools.push(newSchool(false));
 
   // camera
   zoom=lerp(zoom,ZOOMS[level],1-Math.exp(-dt*1.5));
@@ -609,38 +782,88 @@ function update(dt){
 }
 
 function playerWorld(z){const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a);const w=rot(f,L.player[0],L.player[1]);return [w[0],w[1],z+boat.bob];}
+// the crew member who throws the grapple: the front survivor from level 5, otherwise the rower
+function grapPos(){const L=LEVELS[level];return L.front||L.player;}
+function grapWorld(z){const p=grapPos(),f=frame(boat.x,boat.y,boat.a);const w=rot(f,p[0],p[1]);return [w[0],w[1],z+boat.bob];}
 function oarSide(){const c=Math.cos(boat.a),s=Math.sin(boat.a);return (-s+c)>0?1:-1;}
 function oarBlade(){const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a);return rot(f,L.player[0]-Math.sin(boat.row)*13,L.player[1]+oarSide()*19);}
 
 function updateGrapple(dt,L){
   if(G.st==='idle'){
-    G.cd-=dt;if(G.cd>0||building)return;
+    G.cd-=dt;if(G.cd>0||building||dieT>=0)return;
     let best=null,bd=1e9;const range=125+L.radius;
     for(const it of items){if(it.kind==='junk'||it.taken)continue;
       const d=Math.hypot(it.x-boat.x,it.y-boat.y);if(d<range&&d<bd){bd=d;best=it;}}
-    if(best){best.taken=true;G.item=best;G.st='throw';G.t=0;G.dur=clamp(bd/330,0.22,0.55);
-      const h=playerWorld(13);G.sx=h[0];G.sy=h[1];SND.whoosh();}
+    if(best){best.taken=true;G.item=best;G.st='throw';G.t=0;G.dur=clamp(bd/330,0.22,0.55);SND.whoosh();}
     return;
   }
   const it=G.item;
   if(G.st==='throw'){
-    G.t+=dt;const k=Math.min(1,G.t/G.dur);const h=playerWorld(13);
+    G.t+=dt;const k=Math.min(1,G.t/G.dur);const h=grapWorld(13);
     G.hx=lerp(h[0],it.x,k);G.hy=lerp(h[1],it.y,k);G.hz=lerp(13,2,k)+Math.sin(k*Math.PI)*34;
     if(k>=1){G.st='pull';G.t=0;splash(it.x,it.y,6,26);SND.splash(0.16);}
   } else if(G.st==='pull'){
-    G.t+=dt;const dx=boat.x-it.x,dy=boat.y-it.y,d=Math.hypot(dx,dy);
-    const v=Math.min(170,40+G.t*260);
-    it.x+=dx/d*v*dt;it.y+=dy/d*v*dt;it.a+=dt*1.5;
+    G.t+=dt;const g=grapWorld(0),dx=g[0]-it.x,dy=g[1]-it.y,d=Math.hypot(dx,dy)||1;
+    const v=Math.min(it.kind==='survivor'?90:170,40+G.t*260);
+    it.x+=dx/d*v*dt;it.y+=dy/d*v*dt;if(it.kind!=='survivor')it.a+=dt*1.5;
     G.hx=it.x;G.hy=it.y;G.hz=it.bz+3;
     if(Math.random()<dt*14)ring(it.x,it.y,3,18,0.7,0.35);
-    if(d<L.collect){collect(it);const i=items.indexOf(it);if(i>=0)items.splice(i,1);G.st='idle';G.item=null;G.cd=0.25;}
+    if(d<10+it.r){collect(it);const i=items.indexOf(it);if(i>=0)items.splice(i,1);G.st='idle';G.item=null;G.cd=0.25;}
   }
 }
 
+// the fisher (level 9) casts at nearby schools of fish and reels in food
+function updateFishing(dt,L){
+  if(dieT>=0||building){FISH.st='idle';return;}
+  const fw=rot(frame(boat.x,boat.y,boat.a),L.fisher[0],L.fisher[1]);
+  if(FISH.st==='idle'){
+    FISH.cd-=dt;if(FISH.cd>0)return;
+    let best=null,bd=1e9;
+    for(const s of schools){const d=Math.hypot(s.x-fw[0],s.y-fw[1]);if(s.fish.length&&d<220&&d<bd){bd=d;best=s;}}
+    if(best){FISH.st='cast';FISH.t=0;FISH.school=best;FISH.tx=best.x;FISH.ty=best.y;FISH.sx=fw[0];FISH.sy=fw[1];SND.whoosh();}
+    return;
+  }
+  FISH.t+=dt;const s=FISH.school;
+  if(FISH.st==='cast'){
+    const k=Math.min(1,FISH.t/0.55);FISH.bx=lerp(FISH.sx,FISH.tx,k);FISH.by=lerp(FISH.sy,FISH.ty,k);FISH.bz=lerp(24,0,k)+Math.sin(k*Math.PI)*45;
+    if(k>=1){FISH.st='wait';FISH.t=0;FISH.wait=rand(0.6,1.3);ring(FISH.bx,FISH.by,2,16,0.8,0.45);SND.splash(0.07);}
+  } else if(FISH.st==='wait'){
+    FISH.bz=Math.sin(T*9)*0.7;
+    if(FISH.t>FISH.wait){
+      FISH.caught=!!s&&schools.includes(s)&&s.fish.length>0&&Math.hypot(s.x-FISH.bx,s.y-FISH.by)<70;
+      if(FISH.caught){s.fish.pop();if(!s.fish.length)schools.splice(schools.indexOf(s),1);splash(FISH.bx,FISH.by,8,30);SND.splash(0.18);}
+      FISH.st='reel';FISH.t=0;FISH.rx=FISH.bx;FISH.ry=FISH.by;
+    }
+  } else if(FISH.st==='reel'){
+    const k=Math.min(1,FISH.t/0.6);FISH.bx=lerp(FISH.rx,fw[0],k);FISH.by=lerp(FISH.ry,fw[1],k);FISH.bz=Math.sin(k*Math.PI)*30+k*14;
+    if(k>=1){if(FISH.caught){inv.food++;floatText(fw[0],fw[1],'+1 food (fish)','#ffb39c');SND.collect('bottle');}
+      FISH.st='idle';FISH.cd=FISH.caught?2.2:1.2;}
+  }
+}
+function drawFishingLine(){
+  const L=LEVELS[level];if(!L.fisher||!FISH.tip||dieT>=0)return;
+  const tip=FISH.tip;
+  ctx.strokeStyle='rgba(240,240,235,.85)';ctx.lineWidth=Math.max(.6,.5*SC);
+  if(FISH.st==='idle'){ctx.beginPath();ctx.moveTo(tip[0],tip[1]);ctx.lineTo(tip[0]+Math.sin(T*2)*SC,tip[1]+9*SC);ctx.stroke();return;}
+  const b=P(FISH.bx,FISH.by,FISH.bz);
+  ctx.beginPath();ctx.moveTo(tip[0],tip[1]);ctx.quadraticCurveTo((tip[0]+b[0])/2,(tip[1]+b[1])/2+(FISH.st==='wait'?10*SC:-6*SC),b[0],b[1]);ctx.stroke();
+  if(FISH.st==='reel'&&FISH.caught){ // flapping silver fish on the hook
+    ctx.save();ctx.translate(b[0],b[1]+3*SC);ctx.rotate(Math.sin(T*25)*0.5+1.3);
+    ell(0,0,4*SC,1.6*SC,'#c9d4da','#5d6c74',0.6*SC);
+    ctx.beginPath();ctx.moveTo(-3.6*SC,0);ctx.lineTo(-6*SC,-2*SC);ctx.lineTo(-6*SC,2*SC);ctx.closePath();ctx.fillStyle='#9fb0b8';ctx.fill();ctx.restore();
+  } else {ell(b[0],b[1],1.6*SC,1.6*SC,'#e8e4dc','#b0231a',0.9*SC);}
+}
 function collect(it){
   let txt,col='#ffe9b8';
+  if(it.kind==='survivor'){
+    SND.rescue();splash(it.x,it.y,12,30);floatText(it.x,it.y,'Survivor rescued!','#ffe08a');
+    for(let i=0;i<16;i++)chip(it.x,it.y,6,C.log);
+    building={t:0,dur:2.9,next:it.next};survivorT=-1;
+    setTimeout(()=>{if(state==='play')SND.upgrade();},500);toast(it.done,2800);
+    return;
+  }
   if(it.kind==='wood'){const n=it.len>26?2:1;inv.wood+=n;txt='+'+n+' wood';col='#e6c08a';}
-  else if(it.kind==='bottle'){inv.bottles++;txt='+1 bottle';col='#bfeaff';}
+  else if(it.kind==='bottle'){inv.bottles++;txt='+1 plastic';col='#bfeaff';}
   else if(it.kind==='crate'){
     const r=pick(['food','water','misc']);inv[r]++;
     txt=r==='food'?'+1 food tin':r==='water'?'+1 fresh water':'+1 '+pick(['screws','wire','metal parts']);
@@ -652,9 +875,9 @@ function collect(it){
 }
 
 function gameOver(){
-  state='over';clearSave();
+  state='over';clearSave();SND.engine(false,0);
   const m=Math.floor(survived/60),s=Math.floor(survived%60);
-  $('over-text').textContent=`Hunger and thirst took you after ${m}m ${s}s adrift. Your shanty reached stage ${level}.`;
+  $('over-text').textContent=`Hunger and thirst took you after ${m}m ${s}s adrift. Your shanty reached level ${level}.`;
   $('over').classList.remove('hidden');$('upgrade').classList.add('hidden');
 }
 
@@ -672,6 +895,7 @@ function render(){
   for(const p of parts){if(p.k!=='ring')continue;const s=P(p.x,p.y,0);const a=p.a*(p.life/p.max);
     ell(s[0],s[1],p.size*SC,p.size*SC*0.5,null,`rgba(230,248,250,${a})`,Math.max(1,SC*0.8));}
 
+  drawFish();
   // gull shadows on the water
   for(const gl of gulls){const s=P(gl.x+gl.z*0.35,gl.y+gl.z*0.35,0);ell(s[0],s[1],5*SC,2*SC,'rgba(10,30,35,.18)');}
 
@@ -686,6 +910,7 @@ function render(){
 
   // rope & hook
   if(G.st!=='idle'&&state==='play')drawRope();
+  if(state!=='menu')drawFishingLine();
 
   // air particles
   for(const p of parts){if(p.k==='ring')continue;const s=P(p.x,p.y,p.z);const a=Math.min(1,p.life/p.max*1.5);
@@ -717,7 +942,80 @@ function render(){
   const vg=ctx.createRadialGradient(W/2,H*0.62,Math.min(W,H)*0.35,W/2,H*0.6,Math.max(W,H)*0.85);
   vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(5,15,18,.5)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
 
-  if(state==='play')drawJoystick();
+  // survivor locator arrow when the waving raft is out of view
+  if((state==='play'||state==='paused')&&level>=MAP_LEVEL&&dieT<0)drawMinimap();
+  // low health: red pulse at the edges below 30%; the whole screen flashes at 10% or below
+  if(state==='play'&&health<LOW){
+    const crit=health<=CRIT;
+    const eg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.max(W,H)*0.75);
+    eg.addColorStop(0,'rgba(180,0,0,0)');eg.addColorStop(1,`rgba(190,10,10,${(crit?0.6:0.38)*(0.3+0.7*beatFlash)})`);
+    ctx.fillStyle=eg;ctx.fillRect(0,0,W,H);
+    if(crit){ctx.fillStyle=`rgba(215,25,20,${0.05+0.32*beatFlash})`;ctx.fillRect(0,0,W,H);}
+  }
+  if(dieT>=0){ctx.fillStyle=`rgba(4,10,12,${clamp((dieT-2.6)/2,0,0.85)})`;ctx.fillRect(0,0,W,H);}
+  if(state==='play'&&dieT<0)drawJoystick();
+}
+
+function drawFish(){
+  for(const s of schools){
+    const cp=P(s.x,s.y,0);if(cp[0]<-90||cp[0]>W+90||cp[1]<-60||cp[1]>H+60)continue;
+    const c=Math.cos(s.h),sn=Math.sin(s.h),swim=s.flee>0?12:4;
+    for(const f of s.fish){
+      const wob=Math.sin(T*1.5+f.ph)*3,ox=f.ox+Math.sin(T*0.7+f.ph)*2;
+      const wx=s.x+ox*c-(f.oy+wob)*sn,wy=s.y+ox*sn+(f.oy+wob)*c,L=4*f.sz;
+      const head=P(wx+c*L,wy+sn*L,-2),tail=P(wx-c*L,wy-sn*L,-2);
+      let dx=head[0]-tail[0],dy=head[1]-tail[1];const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
+      const wag=Math.sin(T*swim+f.ph)*1.6*SC;
+      line(tail,head,rgb(s.col,1,0.5),2.6*SC*f.sz);
+      ctx.beginPath();ctx.moveTo(tail[0],tail[1]);
+      ctx.lineTo(tail[0]-dx*3*SC-dy*(1.8*SC+wag),tail[1]-dy*3*SC+dx*(1.8*SC+wag));
+      ctx.lineTo(tail[0]-dx*3*SC+dy*(1.8*SC-wag),tail[1]-dy*3*SC-dx*(1.8*SC-wag));
+      ctx.closePath();ctx.fillStyle=rgb(s.col,1,0.45);ctx.fill();
+      if(Math.sin(T*2+f.ph*3)>0.985)ell(head[0],head[1]-SC,1.1*SC,0.6*SC,'rgba(220,240,240,.7)');
+    }
+  }
+}
+
+// circular mini map (level 5+), oriented like the screen: up on the map is up on screen
+function drawMinimap(){
+  const nb=$('needs').getBoundingClientRect();
+  const R=Math.round(clamp(W*0.15,50,72)),cx=12+R,cy=nb.bottom+12+R,range=1100,k=R/range;
+  const m=(x,y)=>{const dx=x-boat.x,dy=y-boat.y;return [cx+(dx-dy)*0.7071*k,cy+(dx+dy)*0.3536*k];}; // same angles as the screen, so steering toward the ! works
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.fillStyle='rgba(14,30,34,.74)';ctx.fill();ctx.clip();
+  ctx.strokeStyle='rgba(180,220,220,.12)';ctx.lineWidth=1;
+  for(const rr of [R/3,R*2/3]){ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();}
+  const vc=[unP(0,H*0.25),unP(W,H*0.25),unP(W,H),unP(0,H)].map(q=>m(q[0],q[1]));
+  ctx.beginPath();vc.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();
+  ctx.fillStyle='rgba(200,230,230,.07)';ctx.fill();ctx.strokeStyle='rgba(200,230,230,.25)';ctx.stroke();
+  for(const r of ruinsNear(boat.x,boat.y,range+150)){const q=m(r.x,r.y),sz=Math.max(3,(r.w+r.d)/2*k);
+    ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(r.a+Math.PI/4);ctx.fillStyle='rgba(150,156,150,.85)';ctx.fillRect(-sz/2,-sz/2,sz,sz);ctx.restore();}
+  for(const it of items){if(it.kind!=='crate')continue;const q=m(it.x,it.y);ell(q[0],q[1],1.5,1.5,'rgba(100,180,245,.9)');}
+  ctx.restore();
+  ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle='rgba(255,240,210,.4)';ctx.lineWidth=1.5;ctx.stroke();
+  const sv=survivorItem();
+  if(sv){let q=m(sv.x,sv.y);const dx=q[0]-cx,dy=q[1]-cy,dd=Math.hypot(dx,dy);
+    if(dd>R-7)q=[cx+dx/dd*(R-7),cy+dy/dd*(R-7)];
+    const pul=1+Math.sin(T*6)*0.18;
+    ell(q[0],q[1],5.5*pul,5.5*pul,'#f2c14e','rgba(40,30,0,.85)',1.2);
+    ctx.fillStyle='#2a1c00';ctx.font='900 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',q[0],q[1]+0.5);}
+  const ha=Math.atan2((Math.cos(boat.a)+Math.sin(boat.a))*0.5,Math.cos(boat.a)-Math.sin(boat.a));
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(ha);ctx.beginPath();ctx.moveTo(6.5,0);ctx.lineTo(-4,-4.5);ctx.lineTo(-1.8,0);ctx.lineTo(-4,4.5);ctx.closePath();
+  ctx.fillStyle='#f3ead6';ctx.fill();ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1;ctx.stroke();ctx.restore();
+  ctx.fillStyle='rgba(243,234,214,.75)';ctx.font='700 9px system-ui';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('MAP',cx,cy+R+11);
+}
+function drawLocator(sv){
+  const p=P(sv.x,sv.y,12),top=H*0.27,m=26;
+  if(p[0]>m&&p[0]<W-m&&p[1]>top&&p[1]<H-m)return;
+  const cx=W/2,cy=H*HORIZON,dx=p[0]-cx,dy=p[1]-cy;
+  const bx0=m+8,bx1=W-m-8,by0=top+10,by1=H-120;let t=1;
+  if(dx>0)t=Math.min(t,(bx1-cx)/dx);if(dx<0)t=Math.min(t,(bx0-cx)/dx);if(dy>0)t=Math.min(t,(by1-cy)/dy);if(dy<0)t=Math.min(t,(by0-cy)/dy);
+  const x=cx+dx*t,y=cy+dy*t,a=Math.atan2(dy,dx),pul=1+Math.sin(T*6)*0.08;
+  ctx.save();ctx.translate(x,y);ctx.rotate(a);
+  ctx.beginPath();ctx.moveTo(27,0);ctx.lineTo(14,-8);ctx.lineTo(14,8);ctx.closePath();ctx.fillStyle='#f2c14e';ctx.fill();
+  ctx.rotate(-a);ctx.scale(pul,pul);ell(0,0,14,14,'rgba(20,28,30,.85)','#f2c14e',2.5);
+  ctx.fillStyle='#f2c14e';ctx.font='900 16px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',0,1);
+  ctx.restore();
 }
 
 function drawWaves(){
@@ -791,9 +1089,20 @@ function drawItem(it){
         ctx.fillStyle='rgba(255,250,220,.95)';ctx.beginPath();ctx.moveTo(s[0],s[1]-k);ctx.lineTo(s[0]+k*0.25,s[1]);ctx.lineTo(s[0],s[1]+k);ctx.lineTo(s[0]-k*0.25,s[1]);ctx.closePath();ctx.fill();
         ctx.beginPath();ctx.moveTo(s[0]-k,s[1]);ctx.lineTo(s[0],s[1]+k*0.25);ctx.lineTo(s[0]+k,s[1]);ctx.lineTo(s[0],s[1]-k*0.25);ctx.closePath();ctx.fill();}
       break;
+    case 'survivor':drawSurvivor(it,f);break;
     case 'junk':{
       const s=proj(f,[0,0,1]);
       if(it.sub==='tire'){ell(s[0],s[1],7*SC,3.5*SC,null,'#1d1f20',3*SC);ell(s[0],s[1]-0.6*SC,7*SC,3.5*SC,null,'rgba(90,90,90,.5)',0.8*SC);}
+      else if(it.sub==='blackbag'){ // knotted black bin bag, puffed up with trapped air
+        const u=SC,w=Math.sin(T*1.6+it.ph)*0.5*u;
+        ctx.beginPath();
+        for(let k=0;k<9;k++){const an=k/9*Math.PI*2+it.a,rr2=(6+Math.sin(k*1.7+it.ph)*1.4)*u;
+          const x=s[0]+Math.cos(an)*rr2,y=s[1]-2.5*u+Math.sin(an)*rr2*0.55;k?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+        ctx.closePath();ctx.fillStyle='#16181a';ctx.fill();ctx.strokeStyle='rgba(0,0,0,.6)';ctx.lineWidth=0.6*u;ctx.stroke();
+        ctx.fillStyle='#1f2224';ctx.beginPath();ctx.moveTo(s[0]-1.4*u,s[1]-5*u);ctx.lineTo(s[0]-3.2*u+w,s[1]-9*u);ctx.lineTo(s[0]-0.2*u,s[1]-6*u);
+        ctx.lineTo(s[0]+2.8*u+w,s[1]-8.6*u);ctx.lineTo(s[0]+1.4*u,s[1]-5*u);ctx.closePath();ctx.fill();
+        ell(s[0],s[1]-5.2*u,1.3*u,0.8*u,'#0c0d0e');
+        ctx.strokeStyle='rgba(200,215,225,.35)';ctx.lineWidth=0.9*u;ctx.beginPath();ctx.ellipse(s[0]-1.5*u,s[1]-3.2*u,3.4*u,1.6*u,-0.3,Math.PI*1.1,Math.PI*1.6);ctx.stroke();}
       else if(it.sub==='bag'){ctx.beginPath();for(let k=0;k<7;k++){const an=k/7*Math.PI*2+it.a,rr2=(5+Math.sin(k*2.3+it.ph+T)*1.6)*SC;
         const x=s[0]+Math.cos(an)*rr2,y=s[1]+Math.sin(an)*rr2*0.5;k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fillStyle='rgba(235,235,225,.72)';ctx.fill();}
       else if(it.sub==='can'){const a=proj(f,[-3,0,1.5]),b=proj(f,[3,0,1.5]);line(a,b,rgb(it.col),3.4*SC);line(a,b,'rgba(255,255,255,.4)',0.8*SC);}
@@ -804,17 +1113,27 @@ function drawItem(it){
         ctx.stroke();}
       break;}
   }
+  if(it.gull)drawPerchedGull(it,f);
 }
 
-function drawBottlesAround(f,r){
-  const [cx,cy,w,h]=r,hw=w/2,hh=h/2,sp=8.5;
-  const edges=[{n:[1,0,0],pts:i=>[cx+hw+2,cy-hh+i],len:h,dir:[0,1]},{n:[-1,0,0],pts:i=>[cx-hw-2,cy-hh+i],len:h,dir:[0,1]},
-               {n:[0,1,0],pts:i=>[cx-hw+i,cy+hh+2],len:w,dir:[1,0]},{n:[0,-1,0],pts:i=>[cx-hw+i,cy-hh-2],len:w,dir:[1,0]}];
-  for(const e of edges){
+// ---------- boat geometry helpers ----------
+const rectPoly=r=>{const [cx,cy,w,h]=r;return [[cx-w/2,cy-h/2],[cx+w/2,cy-h/2],[cx+w/2,cy+h/2],[cx-w/2,cy+h/2]];};
+const offPoly=(p,dx,dy)=>p.map(q=>[q[0]+dx,q[1]+dy]);
+// polygons are counter-clockwise, so the outward normal of edge a->b is (dy,-dx)
+function edgesOf(poly){
+  return poly.map((a,i)=>{const b=poly[(i+1)%poly.length],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy);
+    return {a,b,len:l,dir:[dx/l,dy/l],n:[dy/l,-dx/l,0]};});
+}
+function polyPath(f,poly,z){const sp=poly.map(p=>proj(f,[p[0],p[1],z]));ctx.beginPath();sp.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();}
+
+// plastic bottles lashed under the deck edges for buoyancy
+function drawBottlesPoly(f,poly,z){
+  const sp=8.5;let k=0;
+  for(const e of edgesOf(poly)){
     if(!faceVisible(f,e.n))continue;
-    let k=0;
-    for(let i=sp/2;i<e.len;i+=sp){const p=e.pts(i);
-      const a=proj(f,[p[0]-e.dir[0]*3,p[1]-e.dir[1]*3,-0.6]),b=proj(f,[p[0]+e.dir[0]*3,p[1]+e.dir[1]*3,-0.6]);
+    for(let i=sp/2;i<e.len;i+=sp){
+      const px=e.a[0]+e.dir[0]*i+e.n[0]*2,py=e.a[1]+e.dir[1]*i+e.n[1]*2;
+      const a=proj(f,[px-e.dir[0]*3,py-e.dir[1]*3,z]),b=proj(f,[px+e.dir[0]*3,py+e.dir[1]*3,z]);
       const col=BOTTLES[(k++)%BOTTLES.length];line(a,b,rgb(col,0.9,0.95),3.6*SC);line(a,b,'rgba(255,255,255,.5)',0.9*SC);}
   }
 }
@@ -829,18 +1148,88 @@ function deckRect(f,r,li){
   for(const bx of [-w*0.32,w*0.32]){box(f,cx+bx,cy,3.2,h+1,2.5,3.8,C.beam,{});}
 }
 
+// solid prism from a polygon (catamaran pontoons)
+function solidPoly(f,poly,z0,z1,col,topCol){
+  for(const e of edgesOf(poly))face(f,[[e.a[0],e.a[1],z0],[e.b[0],e.b[1],z0],[e.b[0],e.b[1],z1],[e.a[0],e.a[1],z1]],e.n,col,{stripes:2});
+  polyPath(f,poly,z1);ctx.fillStyle=rgb(topCol,0.88);ctx.fill();ctx.strokeStyle='rgba(55,32,14,.65)';ctx.lineWidth=Math.max(.8,SC*.6);ctx.stroke();
+  const xs=poly.map(p=>p[0]),ys=poly.map(p=>p[1]),y0=Math.min(...ys),y1=Math.max(...ys);
+  ctx.save();ctx.clip();ctx.beginPath();
+  for(let y=y0+4.5;y<y1;y+=4.5){const a=proj(f,[Math.min(...xs),y,z1]),b=proj(f,[Math.max(...xs),y,z1]);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+  ctx.strokeStyle='rgba(50,30,12,.4)';ctx.stroke();ctx.restore();
+}
+
+// rowboat hull (levels 7+): floor and far inner walls first, contents, then near outer walls
+const HULL_TOP=10;
+function hullBack(f){
+  polyPath(f,HULL,2.5);ctx.fillStyle=rgb(C.log,0.78);ctx.fill();
+  ctx.save();ctx.clip();ctx.beginPath();
+  for(let y=-24;y<=24;y+=6){const a=proj(f,[-31,y,2.5]),b=proj(f,[90,y,2.5]);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+  ctx.strokeStyle='rgba(50,30,12,.45)';ctx.lineWidth=Math.max(.8,SC*.6);ctx.stroke();
+  for(const x of [-8,30]){const a=proj(f,[x,-27,2.5]),b=proj(f,[x,27,2.5]);line(a,b,'rgba(70,45,22,.8)',2.4*SC);}
+  ctx.restore();
+  for(const e of edgesOf(HULL)){
+    if(faceVisible(f,e.n))continue;
+    face(f,[[e.a[0],e.a[1],2.5],[e.b[0],e.b[1],2.5],[e.b[0],e.b[1],HULL_TOP],[e.a[0],e.a[1],HULL_TOP]],[-e.n[0],-e.n[1],0],C.plank,{force:true,bright:0.8,stripes:3});
+    line(proj(f,[e.a[0],e.a[1],HULL_TOP]),proj(f,[e.b[0],e.b[1],HULL_TOP]),'#b48452',2.2*SC);
+  }
+}
+function hullFront(f){
+  for(const e of edgesOf(HULL)){
+    if(!faceVisible(f,e.n))continue;
+    face(f,[[e.a[0],e.a[1],-2],[e.b[0],e.b[1],-2],[e.b[0],e.b[1],HULL_TOP],[e.a[0],e.a[1],HULL_TOP]],e.n,[138,98,60],{stripes:4});
+    line(proj(f,[e.a[0],e.a[1],HULL_TOP]),proj(f,[e.b[0],e.b[1],HULL_TOP]),'#c4945e',2.2*SC);
+  }
+  const s0=proj(f,[90,0,HULL_TOP]),s1=proj(f,[92,0,HULL_TOP+5]);line(s0,s1,'#7a5530',2.4*SC);
+}
+
+function drawMotor(f,mx){
+  const run=dieT<0&&Math.hypot(boat.vx,boat.vy)>5,jig=run?Math.sin(T*45)*0.35:0;
+  box(f,mx+5,0,4,9,1.5,6.5,[72,72,74],{});
+  box(f,mx,0,3,2.6,-6,5,[58,60,62],{});
+  const mf=frame(f.x,f.y,f.a,f.z+jig);
+  box(mf,mx-0.5,0,8,7,5,14,[178,52,40],{topCol:[205,72,56]});
+  box(mf,mx-0.5,0,8.5,7.5,10.5,11.6,[232,230,224],{noTop:true});
+  line(proj(f,[mx+3,0,12]),proj(f,[mx+14,2.5,12]),'#262626',1.7*SC);
+}
+
 function drawBoat(){
   const L=LEVELS[level];
-  const f=frame(boat.x,boat.y,boat.a,boat.bob);
-  // soft shadow / displaced water around the raft
+  const f=frame(boat.x,boat.y,boat.a,boat.bob),sd=boat.x+boat.y;
   const ws=P(boat.x,boat.y,0);
-  ell(ws[0],ws[1]+SC,(L.radius+10)*SC,(L.radius+10)*SC*0.5,'rgba(10,30,36,.25)');
-  if(L.bottles) for(const r of L.rects) drawBottlesAround(f,r);
+  ell(ws[0],ws[1]+SC,(L.radius+12)*SC,(L.radius+12)*SC*0.5,'rgba(10,30,36,.25)');
+  const depth=(lx,ly)=>{const w=rot(f,lx,ly);return w[0]+w[1];};
+  const motorBehind=L.motor&&depth(L.motor,0)<sd;
+  if(motorBehind)drawMotor(f,L.motor);
+  if(L.bottles){for(const r of L.rects)drawBottlesPoly(f,rectPoly(r),-0.6);if(L.hull)drawBottlesPoly(f,HULL,-0.6);}
+  if(L.cats){
+    for(const s of [1,-1])solidPoly(f,offPoly(PONTOON,6,s*64),-2,5,[118,84,50],C.log);
+    for(const s of [1,-1])for(const px of [-14,44])box(f,px,s*42,5,44,5,7,C.plank,{top:{stripes:2}});
+  }
   L.rects.forEach((r,i)=>deckRect(f,r,i));
   if(L.planks){for(const s of [1,-1])for(const px of [-9,9])box(f,px,s*36,5,22,2.5,4.3,C.plank,{top:{stripes:2}});}
-  const pl=L.player,pw=rot(f,pl[0],pl[1]),pd=pw[0]+pw[1],sd=boat.x+boat.y;
-  const struct=()=>{if(L.shack)drawShack(f);else if(L.tent)drawTent(f);};
-  if(pd<sd-0.5){drawPerson(f,pl);ctx.globalAlpha=0.5;struct();ctx.globalAlpha=1;}else{struct();drawPerson(f,pl);}
+  if(L.frontPlanks){for(const s of [1,-1])box(f,36.5,s*9,22,5,2.5,4.3,C.plank,{top:{stripes:2}});}
+  if(L.sternRaft){for(const sg of [1,-1])box(f,-33.5,sg*9,11,5,2.5,4.3,C.plank,{top:{stripes:2}});}
+  const crew=crewList(L),aft=[],inner=[];
+  for(const c of crew)(L.sternRaft&&c.pl[0]<-33?aft:inner).push(c);
+  const aftList=aft.map(c=>({d:depth(c.pl[0],c.pl[1]),fn:()=>drawPerson(f,c.pl,c.o)}));
+  if(L.pot)aftList.push({d:depth(L.pot[0],L.pot[1]),fn:()=>drawTomato(f,L.pot[0],L.pot[1])});
+  const aftBehind=depth(-56,0)<sd,drawAft=()=>aftList.sort((a,b)=>a.d-b.d).forEach(x=>x.fn());
+  if(L.sternRaft&&aftBehind)drawAft();
+  if(L.hull)hullBack(f);
+  // crew & structure, painter-sorted
+  const list=inner.map(c=>({d:depth(c.pl[0],c.pl[1]),s:proj(f,[c.pl[0],c.pl[1],2.5]),fn:()=>drawPerson(f,c.pl,c.o)}));
+  if(L.shack||L.tent){
+    const sb=proj(f,[-3,0,2.5]),sdp=depth(-3,0);
+    list.push({d:sdp,struct:true,fn:()=>{
+      const hides=list.some(p=>!p.struct&&p.d<sdp&&Math.abs(p.s[0]-sb[0])<26*SC&&p.s[1]<sb[1]+4*SC&&p.s[1]>sb[1]-44*SC);
+      if(hides)ctx.globalAlpha=0.5;
+      if(L.shack)drawShack(f);else drawTent(f);
+      ctx.globalAlpha=1;}});
+  }
+  list.sort((a,b)=>a.d-b.d).forEach(x=>x.fn());
+  if(L.hull)hullFront(f);
+  if(L.sternRaft&&!aftBehind)drawAft();
+  if(L.motor&&!motorBehind)drawMotor(f,L.motor);
 }
 function drawTent(f){
   prism(f,-2,15,16,2.5,24,C.tent,{stripes:5,endCol:C.tentEnd,opening:true});
@@ -852,68 +1241,172 @@ function drawShack(f){
   box(f,cx,0,s,s,2.5,23,C.plank,{noTop:true,sx:{stripes:6},sy:{stripes:6}});
   face(f,[[hx+.3,-5,2.5],[hx+.3,5,2.5],[hx+.3,5,17],[hx+.3,-5,17]],[1,0,0],[70,46,26],{});
   face(f,[[hx+.4,-4,9.5],[hx+.4,-2.5,9.5],[hx+.4,-2.5,11],[hx+.4,-4,11]],[1,0,0],[200,180,120],{stroke:false});
-  for(const sg of [1,-1]){
-    face(f,[[cx-7,sg*(hy+.3),11],[cx+5,sg*(hy+.3),11],[cx+5,sg*(hy+.3),18],[cx-7,sg*(hy+.3),18]].map(p=>sg<0?[p[1]===undefined?0:p[0],p[1],p[2]]:p),[0,sg,0],[34,40,44],{stroke:'rgba(70,46,26,.9)'});
-  }
+  for(const sg of [1,-1])face(f,[[cx-7,sg*(hy+.3),11],[cx+5,sg*(hy+.3),11],[cx+5,sg*(hy+.3),18],[cx-7,sg*(hy+.3),18]],[0,sg,0],[34,40,44],{stroke:'rgba(70,46,26,.9)'});
   prism(f,cx,19,20,23,31,C.roof,{stripes:4,endCol:C.plank});
   box(f,-10,8,3.2,3.2,26,40,C.metal,{});
+  if(level>=MAP_LEVEL){const b=proj(f,[0,-7,28]),t=proj(f,[0,-7,47]);line(b,t,'#6a6f73',1.2*SC);
+    const an=T*2.5,c=Math.cos(an),sn=Math.sin(an);line(proj(f,[c*7,-7+sn*7,47]),proj(f,[-c*7,-7-sn*7,47]),'#a7b0b5',1.6*SC);
+    if((T%1.2)<0.35)ell(t[0],t[1]-1.6*SC,1.6*SC,1.6*SC,'#ff5a3a');}
 }
 
-function drawPerson(f,pl){
-  const L=LEVELS[level];
-  const base=proj(f,[pl[0],pl[1],2.5]);const u=SC;
-  const hx=f.c-f.s; if(Math.abs(hx)>0.25)boat.fx=hx>0?1:-1; const fx=boat.fx;
-  const side=oarSide(),rp=boat.row;
-  const bc=Math.cos(rp),bz=bc>0?1.2-3.4*bc:1.2+2*(-bc);
-  const handle=proj(f,[pl[0]+Math.sin(rp)*3,pl[1]+side*5,10]);
-  const blade=proj(f,[pl[0]-Math.sin(rp)*13,pl[1]+side*19,bz]);
-  const lean=Math.sin(rp)*0.07*(building?0:1);
-  // shadow
-  ell(base[0],base[1],7*u,3*u,'rgba(20,10,0,.25)');
-  ctx.save();ctx.translate(base[0],base[1]);ctx.scale(fx,1);ctx.rotate(lean);
-  // crossed legs in torn trousers
-  ell(3*u,-1.6*u,6.5*u,2.6*u,'#4e4232');
+function crewList(L){
+  const c=[{pl:L.player,o:{main:true,idx:0,style:STYLE1,role:L.motor?'motor':'row',grapple:!L.front}}];
+  if(L.front)c.push({pl:L.front,o:{idx:1,style:STYLE2,role:'none',grapple:true}});
+  if(L.fisher)c.push({pl:L.fisher,o:{idx:2,style:STYLE3,role:'fish'}});
+  if(L.farmer)c.push({pl:L.farmer,o:{idx:3,style:STYLE4,role:'farm',pot:L.pot}});
+  return c;
+}
+function boatExtent(L){
+  let x0=-17,x1=17,y0=-17,y1=17;const add=(a,b,c,d)=>{x0=Math.min(x0,a);x1=Math.max(x1,b);y0=Math.min(y0,c);y1=Math.max(y1,d);};
+  for(const r of L.rects)add(r[0]-r[2]/2,r[0]+r[2]/2,r[1]-r[3]/2,r[1]+r[3]/2);
+  if(L.hull)add(-31,90,-27,27);if(L.cats)add(-34,70,-73,73);if(L.motor)add(L.motor-4,0,0,0);
+  return {x0,x1,y0,y1};
+}
+// where a crew member ends up after tumbling overboard: off the nearest end, or off the side
+function fallDest(pl){
+  const e=boatExtent(LEVELS[level]);
+  if(pl[0]<-12)return [e.x0-12,pl[1]];
+  if(pl[0]>40)return [e.x1+12,pl[1]];
+  const sg=pl[1]?Math.sign(pl[1]):oarSide();
+  return [pl[0],sg>0?e.y1+12:e.y0-12];
+}
+const FALL_START=1.5,FALL_DUR=0.75;
+const fallTime=i=>FALL_START+i*0.35;
+// o: {style, role:'row'|'motor'|'none'|'wave'|'fish', grapple, main, idx, fx}
+function drawPerson(f,pl,o){
+  const st=o.style||STYLE1,u=SC;
+  let fp=pl,fz=2.5;
+  if(dieT>=0&&o.idx!==undefined){ // after fainting, tumble overboard
+    const k=clamp((dieT-fallTime(o.idx))/FALL_DUR,0,1);
+    if(k>=1)return;
+    const d=fallDest(pl);fp=[lerp(pl[0],d[0],k),lerp(pl[1],d[1],k)];fz=2.5+Math.sin(k*Math.PI)*9-k*10;
+  }
+  const base=proj(f,[fp[0],fp[1],fz]);
+  let fx=o.fx;
+  if(fx===undefined){const hx=f.c-f.s;if(Math.abs(hx)>0.25)boat.fx=hx>0?1:-1;fx=boat.fx;}
+  const fainting=dieT>=0&&o.idx!==undefined, fk=fainting?1-Math.pow(1-clamp(dieT/1.3,0,1),3):0;
+  const rp=boat.row,side=oarSide();
+  const lean=o.role==='row'&&!fainting?Math.sin(rp)*0.07*(building?0:1):0;
+  ell(base[0]-fx*fk*8*u,base[1],(7+fk*6)*u,3*u,'rgba(20,10,0,.25)');
+  ctx.save();ctx.translate(base[0],base[1]+fk*1.5*u);ctx.scale(fx,1);ctx.rotate(lean-fk*1.45);
+  ell(3*u,-1.6*u,6.5*u,2.6*u,st.legs);
   ell(8.5*u,-1.2*u,1.7*u,1.3*u,'#c9926a');
-  // rag tunic with jagged hem
   ctx.beginPath();ctx.moveTo(-4.8*u,-1*u);ctx.lineTo(-5.4*u,-8*u);ctx.quadraticCurveTo(-4.6*u,-13*u,-1*u,-13.4*u);
   ctx.lineTo(2*u,-13.2*u);ctx.quadraticCurveTo(5.2*u,-12*u,5.2*u,-7.5*u);ctx.lineTo(5*u,-1*u);
   ctx.lineTo(3.6*u,-2.6*u);ctx.lineTo(2.4*u,-0.4*u);ctx.lineTo(0.8*u,-2.4*u);ctx.lineTo(-0.8*u,-0.2*u);ctx.lineTo(-2.4*u,-2.2*u);ctx.lineTo(-3.6*u,-0.4*u);ctx.closePath();
-  ctx.fillStyle='#8b7a57';ctx.fill();ctx.strokeStyle='rgba(40,30,15,.6)';ctx.lineWidth=Math.max(.8,.6*u);ctx.stroke();
-  ctx.fillStyle='#6d5d40';ctx.fillRect(-3.6*u,-8.5*u,3*u,3*u);
+  ctx.fillStyle=st.rag;ctx.fill();ctx.strokeStyle='rgba(40,30,15,.6)';ctx.lineWidth=Math.max(.8,.6*u);ctx.stroke();
+  ctx.fillStyle=st.patch;ctx.fillRect(-3.6*u,-8.5*u,3*u,3*u);
   ctx.strokeStyle='rgba(40,30,15,.5)';ctx.beginPath();ctx.moveTo(1*u,-11*u);ctx.lineTo(3*u,-5*u);ctx.stroke();
-  // head: sun-worn face, messy hair, stubble, headband rag
-  ell(0.6*u,-16.4*u,3.4*u,3.6*u,'#cf9c74');
-  ell(2.6*u,-16*u,0.6*u,0.6*u,'#2a1c12');
+  ell(0.6*u,-16.4*u,3.4*u,3.6*u,st.skin);
+  if(fainting&&fk>0.5){ctx.strokeStyle='#2a1c12';ctx.lineWidth=Math.max(.8,.6*u);ctx.beginPath();ctx.moveTo(1.9*u,-16*u);ctx.lineTo(3.2*u,-16*u);ctx.stroke();}
+  else ell(2.6*u,-16*u,0.6*u,0.6*u,'#2a1c12');
   ctx.fillStyle='rgba(60,40,25,.45)';ctx.beginPath();ctx.ellipse(1.6*u,-14.2*u,2.4*u,1.4*u,0,0,Math.PI);ctx.fill();
-  ctx.fillStyle='#3a2a1c';ctx.beginPath();ctx.ellipse(0*u,-18.2*u,3.8*u,2.2*u,-0.2,Math.PI,Math.PI*2.05);ctx.fill();
-  for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo((-3+i*1.6)*u,-19*u);ctx.lineTo((-3.6+i*1.4)*u,-15.4*u+Math.sin(T*3+i)*0.4*u);ctx.lineWidth=Math.max(.8,.8*u);ctx.strokeStyle='#3a2a1c';ctx.stroke();}
-  ctx.fillStyle='#9c3b2e';ctx.fillRect(-3.4*u,-18.6*u,7*u,1.2*u);
+  ctx.fillStyle=st.hair;ctx.beginPath();ctx.ellipse(0,-18.2*u,3.8*u,2.2*u,-0.2,Math.PI,Math.PI*2.05);ctx.fill();
+  for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo((-3+i*1.6)*u,-19*u);ctx.lineTo((-3.6+i*1.4)*u,-15.4*u+Math.sin(T*3+i)*0.4*u);ctx.lineWidth=Math.max(.8,.8*u);ctx.strokeStyle=st.hair;ctx.stroke();}
+  ctx.fillStyle=st.band;ctx.fillRect(-3.4*u,-18.6*u,7*u,1.2*u);
+  if(st.hat){ell(0.6*u,-18.9*u,6.4*u,1.7*u,'#d9b866','rgba(90,70,30,.7)',0.5*u);
+    ell(0.4*u,-20.4*u,3.4*u,2.3*u,'#e4c77c','rgba(90,70,30,.7)',0.5*u);ctx.fillStyle='#8a3a2a';ctx.fillRect(-2.9*u,-19.7*u,6.6*u,0.9*u);}
+  if(fainting){ // limp arm draped over the deck
+    ctx.strokeStyle='#c08d63';ctx.lineWidth=1.8*u;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(1*u,-11*u);ctx.lineTo(5*u,-4*u);ctx.stroke();}
   ctx.restore();
   const shoulder=[base[0]+fx*1.5*u,base[1]-11*u];
-  // throwing arm toward the rope
-  if(G.st!=='idle'){const h=handPos(base,fx);line(shoulder,h,'#b8865e',1.8*u);}
-  // oar + rowing arm
-  line(handle,blade,'#6e4a28',1.6*u);
-  const bdx=blade[0]-handle[0],bdy=blade[1]-handle[1],bl=Math.hypot(bdx,bdy)||1;
-  const bb=[blade[0]-bdx/bl*5*u,blade[1]-bdy/bl*5*u];
-  line(bb,[blade[0]+bdx/bl*1.5*u,blade[1]+bdy/bl*1.5*u],'#8a6036',3.8*u);
-  line(shoulder,handle,'#c08d63',1.8*u);
+  if(fainting){ // the oar slips out of their hands and lies on the deck
+    if(o.role==='row'){const a=proj(f,[pl[0]+6,pl[1]+side*4,3]),b=proj(f,[pl[0]-12,pl[1]+side*16,3]);line(a,b,'#6e4a28',1.6*u);line(b,proj(f,[pl[0]-16,pl[1]+side*19,3]),'#8a6036',3.8*u);}
+    return;
+  }
+  if(o.grapple&&G.st!=='idle'){line(shoulder,handPos(base,fx),'#b8865e',1.8*u);}
+  else if(o.role==='none'){ // coil of spare rope beside the grappler
+    const c=proj(f,[pl[0]+5,pl[1]-side*6,3]);for(let i=0;i<3;i++)ell(c[0],c[1]-i*0.8*u,(3.4-i*0.5)*u,(1.7-i*0.25)*u,null,'#cbb183',1*u);}
+  if(o.role==='row'){
+    const bc=Math.cos(rp),bz=bc>0?1.2-3.4*bc:1.2+2*(-bc);
+    const handle=proj(f,[pl[0]+Math.sin(rp)*3,pl[1]+side*5,10]);
+    const blade=proj(f,[pl[0]-Math.sin(rp)*13,pl[1]+side*19,bz]);
+    line(handle,blade,'#6e4a28',1.6*u);
+    const bdx=blade[0]-handle[0],bdy=blade[1]-handle[1],bl=Math.hypot(bdx,bdy)||1;
+    line([blade[0]-bdx/bl*5*u,blade[1]-bdy/bl*5*u],[blade[0]+bdx/bl*1.5*u,blade[1]+bdy/bl*1.5*u],'#8a6036',3.8*u);
+    line(shoulder,handle,'#c08d63',1.8*u);
+  } else if(o.role==='motor'){
+    const L=LEVELS[level];line(shoulder,proj(f,[L.motor+14,2.5,12]),'#c08d63',1.8*u);
+  } else if(o.role==='fish'){
+    const hand=[shoulder[0]+fx*4*u,shoulder[1]-1*u];let dir=[fx*0.55,-1];
+    if(FISH.st!=='idle'){const b=P(FISH.bx,FISH.by,FISH.bz||0),dx=b[0]-hand[0],dy=b[1]-hand[1],l=Math.hypot(dx,dy)||1;dir=[dx/l*0.8,dy/l*0.8-0.75];}
+    const dl=Math.hypot(dir[0],dir[1]),tip=[hand[0]+dir[0]/dl*24*u,hand[1]+dir[1]/dl*24*u];
+    line(shoulder,hand,'#c08d63',1.8*u);line(hand,tip,'#4a3424',1.1*u);ell(hand[0]-fx*1.2*u,hand[1]+1.2*u,1.4*u,1.4*u,'#5a5f63');
+    FISH.tip=tip;
+  } else if(o.role==='farm'){
+    const pt=proj(f,[o.pot[0],o.pot[1],13]),k=0.55+Math.sin(T*1.4)*0.12;
+    const hnd=[lerp(shoulder[0],pt[0],k),lerp(shoulder[1],pt[1],k)];line(shoulder,hnd,'#c08d63',1.8*u);ell(hnd[0],hnd[1],1.2*u,1.2*u,st.skin);
+  } else if(o.role==='wave'){
+    const hnd=[shoulder[0]+fx*(3+Math.sin(T*9)*3)*u,shoulder[1]-8*u];line(shoulder,hnd,'#c08d63',1.8*u);ell(hnd[0],hnd[1],1.3*u,1.3*u,'#d9a882');
+  }
 }
 function handPos(base,fx){const u=SC;return G.st==='throw'?[base[0]+fx*3*u,base[1]-17*u]:[base[0]+fx*5*u,base[1]-10*u];}
 
 function drawRope(){
-  const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a,boat.bob);
-  const base=proj(f,[L.player[0],L.player[1],2.5]);
+  const gp=grapPos(),f=frame(boat.x,boat.y,boat.a,boat.bob);
+  const base=proj(f,[gp[0],gp[1],2.5]);
   const h=handPos(base,boat.fx);const k=P(G.hx,G.hy,G.hz);
   const mx=(h[0]+k[0])/2,my=(h[1]+k[1])/2+(G.st==='throw'?-10*SC:6*SC+Math.sin(T*6)*2*SC);
   ctx.beginPath();ctx.moveTo(h[0],h[1]);ctx.quadraticCurveTo(mx,my,k[0],k[1]);
   ctx.strokeStyle='rgba(40,25,10,.55)';ctx.lineWidth=2.4*SC;ctx.stroke();
   ctx.strokeStyle='#d8c08e';ctx.lineWidth=1.2*SC;ctx.stroke();
-  // grapple hook
   const r=2.6*SC;ctx.strokeStyle='#59636a';ctx.lineWidth=1.4*SC;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(k[0],k[1]-r*1.6);ctx.lineTo(k[0],k[1]+r*0.4);ctx.stroke();
   ctx.beginPath();ctx.arc(k[0],k[1]-r*0.4,r,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
   ctx.strokeStyle='#9aa4aa';ctx.lineWidth=0.7*SC;ctx.beginPath();ctx.arc(k[0],k[1]-r*0.4,r,0.2*Math.PI,0.5*Math.PI);ctx.stroke();
+}
+
+// potted tomato plant (comes aboard with the farmer)
+function drawTomato(f,lx,ly){
+  const z0=2.5,z1=10;
+  box(f,lx,ly,8,8,z0,z1-1.6,[172,88,56],{noTop:true});
+  box(f,lx,ly,9.6,9.6,z1-1.6,z1,[198,112,72],{topCol:[74,50,32]});
+  const top=proj(f,[lx,ly,z1]),u=SC,sw=Math.sin(T*1.2+lx)*0.6*u;
+  line(top,[top[0]+1*u,top[1]-21*u],'#8a6a3a',0.9*u);
+  ctx.strokeStyle='#3f7a2c';ctx.lineWidth=1.1*u;ctx.lineCap='round';ctx.beginPath();
+  ctx.moveTo(top[0],top[1]);ctx.quadraticCurveTo(top[0]-4*u+sw,top[1]-8*u,top[0]-2*u+sw,top[1]-17*u);
+  ctx.moveTo(top[0],top[1]);ctx.quadraticCurveTo(top[0]+5*u+sw,top[1]-7*u,top[0]+3*u+sw,top[1]-15*u);ctx.stroke();
+  for(const [dx,dy,r] of [[-4,-7,2.6],[-2,-14,2.4],[4,-6,2.5],[3.5,-13,2.2],[0,-18.5,2.3],[-4.5,-11,2]])
+    ell(top[0]+dx*u+sw,top[1]+dy*u,r*u,r*0.6*u,'#4f9a36','rgba(30,60,20,.6)',0.5*u);
+  for(const [dx,dy,r] of [[-3,-9,1.8],[2.6,-10,1.6],[0.5,-5,1.7],[-1,-15,1.3]]){
+    ell(top[0]+dx*u+sw,top[1]+dy*u,r*u,r*u,'#d8352a','rgba(90,20,10,.6)',0.5*u);
+    ell(top[0]+(dx-0.5)*u+sw,top[1]+(dy-0.5)*u,r*0.35*u,r*0.3*u,'rgba(255,220,200,.7)');}
+}
+// stranded survivor waving from a little raft (level 4 event)
+function drawSurvivor(it,f){
+  deckRect(f,[0,0,26,26],7);
+  if(it.farmer)drawTomato(f,-6,-6);
+  else{
+  const p0=proj(f,[-9,-9,2.5]),p1=proj(f,[-9,-9,30]);line(p0,p1,'#5d3f22',1.4*SC);
+  const fl=Math.sin(T*6+it.ph)*2*SC;
+  ctx.beginPath();ctx.moveTo(p1[0],p1[1]);ctx.quadraticCurveTo(p1[0]+7*SC,p1[1]+2*SC+fl,p1[0]+13*SC,p1[1]+3*SC+fl*1.4);
+  ctx.lineTo(p1[0]+1*SC,p1[1]+8*SC);ctx.closePath();ctx.fillStyle='#d8d2c0';ctx.fill();ctx.strokeStyle='rgba(60,50,30,.6)';ctx.lineWidth=SC*.6;ctx.stroke();
+  }
+  const toBoat=(boat.x-it.x)-(boat.y-it.y);
+  if(it.fisher){const a=proj(f,[8,-5,3]),b=proj(f,[17,-15,36]);line(a,b,'#4a3424',1.1*SC);
+    const w=Math.sin(T*2+it.ph)*1.5*SC;ctx.beginPath();ctx.moveTo(b[0],b[1]);ctx.quadraticCurveTo(b[0]+4*SC+w,b[1]+14*SC,b[0]+6*SC,b[1]+30*SC);
+    ctx.strokeStyle='rgba(235,235,230,.8)';ctx.lineWidth=Math.max(.6,.5*SC);ctx.stroke();}
+  drawPerson(f,[2,2],{style:it.style||STYLE2,role:'wave',fx:toBoat>=0?1:-1});
+  if(((T+it.ph)%3.2)<1.6){const s=proj(f,[2,2,34]);
+    ctx.font=`800 ${Math.round(11*Math.max(1,SC*0.75))}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    const w=ctx.measureText('Help!').width+10;ctx.fillStyle='rgba(250,246,235,.95)';
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(s[0]-w/2,s[1]-9,w,18,8):ctx.rect(s[0]-w/2,s[1]-9,w,18);ctx.fill();
+    ctx.fillStyle='#8a2a1c';ctx.fillText('Help!',s[0],s[1]+1);}
+}
+
+// a gull resting on floating junk
+function drawPerchedGull(it,f){
+  const g=it.gull,s=proj(f,[0,0,it.sub==='foam'?2.6:1.6]),u=SC,fx=g.fx;
+  const peck=Math.max(0,Math.sin(T*1.3+g.ph))>0.93?1.4*u:0;
+  ctx.save();ctx.translate(s[0],s[1]);ctx.scale(fx,1);
+  ell(-0.5*u,0.6*u,1*u,0.3*u,null,'#e89a3a',0.6*u);
+  ctx.fillStyle='#55595c';ctx.beginPath();ctx.moveTo(-3.6*u,-2*u);ctx.lineTo(-6.5*u,-2.8*u);ctx.lineTo(-3.4*u,-0.9*u);ctx.closePath();ctx.fill();
+  ell(-0.6*u,-2.2*u,3.6*u,2*u,'#f4f3ee','rgba(60,60,60,.5)',0.5*u);
+  ell(-1.4*u,-2.6*u,2.6*u,1.1*u,'#9aa1a6');
+  ell(2.6*u,-4.4*u+peck,1.5*u,1.4*u,'#f7f6f2','rgba(60,60,60,.5)',0.5*u);
+  ell(3.1*u,-4.8*u+peck,0.35*u,0.35*u,'#1c1c1c');
+  line([3.9*u,-4.3*u+peck],[5.6*u,-3.9*u+peck],'#f0b030',0.9*u);
+  ctx.restore();
 }
 
 function drawGull(g){
@@ -956,7 +1449,7 @@ if(saved){$('btn-start').textContent='Continue';const n=$('btn-new');n.style.dis
 $('btn-start').addEventListener('click',()=>{SND.init();$('start').classList.add('hidden');newGame(load());if(!saved)toast('Drag anywhere to row toward the floating driftwood.',3600);});
 $('btn-new').addEventListener('click',()=>{SND.init();clearSave();$('start').classList.add('hidden');newGame(null);toast('Drag anywhere to row toward the floating driftwood.',3600);});
 $('btn-retry').addEventListener('click',()=>{SND.init();$('over').classList.add('hidden');newGame(null);});
-document.addEventListener('visibilitychange',()=>{if(!SND.ctx)return;if(document.hidden){SND.ctx.suspend();save();}else SND.ctx.resume();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){setPaused(true);if(SND.ctx)SND.ctx.suspend();if(state==='play')save();}else if(SND.ctx&&state!=='paused')SND.ctx.resume();});
 addEventListener('pagehide',()=>{if(state==='play')save();});
 requestAnimationFrame(loop);
 </script>
