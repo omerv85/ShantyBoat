@@ -705,6 +705,19 @@ function update(dt){
       if(Math.random()<0.35){const e=rot(f,L.motor,0);smoke(e[0],e[1],15,[90,90,92],rand(2,3));}}
     else{const st=rot(f,-L.radius*0.9,rand(-L.radius*.4,L.radius*.4));ring(st[0],st[1],3,22,1.4,0.28);}}
 
+  // foam: wake trailing from the stern corners and a bow wave pushed aside at the front
+  boat.foamT=(boat.foamT||0)-dt;
+  if(sp>9&&dieT<0&&boat.foamT<=0){
+    boat.foamT=0.08;const e=boatExtent(L),f=frame(boat.x,boat.y,boat.a),k=clamp(sp/80,0.3,1.2);
+    for(const sg of [1,-1]){
+      const st=rot(f,e.x0+3,(sg>0?e.y1:e.y0)-sg*3),out=[-f.s*sg,f.c*sg];
+      parts.push({k:'foam',x:st[0]+rand(-2,2),y:st[1]+rand(-2,2),z:0,vx:out[0]*rand(6,14)*k-boat.vx*0.15,vy:out[1]*rand(6,14)*k-boat.vy*0.15,size:rand(1.5,2.5),grow:rand(4,7),life:rand(1.4,2.2),max:2.2,a:0.38*k});
+      const bw=rot(f,e.x1-6,(sg>0?e.y1:e.y0)*0.55);
+      parts.push({k:'foam',x:bw[0],y:bw[1],z:0,vx:out[0]*rand(14,24)*k,vy:out[1]*rand(14,24)*k,size:rand(1.2,2),grow:rand(4,7),life:rand(0.7,1.1),max:1.1,a:0.4*k});
+    }
+    const mid=rot(f,e.x0-2,rand(e.y0*0.3,e.y1*0.3));
+    parts.push({k:'foam',x:mid[0],y:mid[1],z:0,vx:-boat.vx*0.1,vy:-boat.vy*0.1,size:rand(2,3),grow:rand(3,5),life:rand(1.6,2.4),max:2.4,a:0.22*k});
+  }
   // ruins collision: the boat's real footprint (oriented box) against each building
   resolveRuinCollisions(L,dt);
 
@@ -739,6 +752,7 @@ function update(dt){
     if(p.life<=0){parts.splice(i,1);continue;}
     if(p.k==='ring'){p.size+=p.grow*dt;continue;}
     p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.k==='foam'){p.size+=p.grow*dt;p.vx*=1-dt*1.6;p.vy*=1-dt*1.6;continue;}
     if(p.k==='smoke'){p.z+=p.vz*dt;p.size+=dt*4;continue;}
     p.vz-=160*dt;p.z+=p.vz*dt;
     if(p.z<0){if(p.k==='drop'){parts.splice(i,1);continue;}p.z=0;p.vz=0;p.vx*=0.9;p.vy*=0.9;}
@@ -918,15 +932,18 @@ function render(){
   if(!SC||state==='menu'){SC=baseScale()*zoom;}
   // sea
   const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#6f8d88');g.addColorStop(0.35,'#3e6b70');g.addColorStop(1,'#1e4651');
+  g.addColorStop(0,'#6c9290');g.addColorStop(0.3,'#3a7176');g.addColorStop(0.7,'#25595f');g.addColorStop(1,'#163f48');
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  drawFish(); // fish swim beneath the surface layers
   drawWaves();
 
   // water layer particles (ripples, wakes)
-  for(const p of parts){if(p.k!=='ring')continue;const s=P(p.x,p.y,0);const a=p.a*(p.life/p.max);
+  for(const p of parts){
+    if(p.k==='foam'){const s=P(p.x,p.y,0),a=p.a*Math.min(1,p.life/p.max*1.4),r=p.size*SC;
+      ell(s[0],s[1],r,r*0.5,`rgba(236,248,248,${a*0.55})`);ell(s[0]+r*0.3,s[1]-r*0.05,r*0.55,r*0.26,`rgba(250,255,255,${a*0.7})`);continue;}
+    if(p.k!=='ring')continue;const s=P(p.x,p.y,0);const a=p.a*(p.life/p.max);
     ell(s[0],s[1],p.size*SC,p.size*SC*0.5,null,`rgba(230,248,250,${a})`,Math.max(1,SC*0.8));}
 
-  drawFish();
   // gull shadows on the water
   for(const gl of gulls){const s=P(gl.x+gl.z*0.35,gl.y+gl.z*0.35,0);ell(s[0],s[1],5*SC,2*SC,'rgba(10,30,35,.18)');}
 
@@ -944,7 +961,7 @@ function render(){
   if(state!=='menu')drawFishingLine();
 
   // air particles
-  for(const p of parts){if(p.k==='ring')continue;const s=P(p.x,p.y,p.z);const a=Math.min(1,p.life/p.max*1.5);
+  for(const p of parts){if(p.k==='ring'||p.k==='foam')continue;const s=P(p.x,p.y,p.z);const a=Math.min(1,p.life/p.max*1.5);
     if(p.k==='drop'){ell(s[0],s[1],p.size*SC*0.7,p.size*SC*0.7,p.col);}
     else if(p.k==='chip'){ctx.save();ctx.translate(s[0],s[1]);ctx.rotate(p.rot+T*6);ctx.fillStyle=rgb(p.col,1,a);ctx.fillRect(-p.size*SC,-p.size*SC*0.35,p.size*SC*2,p.size*SC*0.7);ctx.restore();}
     else if(p.k==='smoke'){ell(s[0],s[1],p.size*SC,p.size*SC*0.8,rgb(p.col,1,0.35*a));}
@@ -1049,23 +1066,81 @@ function drawLocator(sv){
   ctx.restore();
 }
 
-function drawWaves(){
-  const c=[unP(0,0),unP(W,0),unP(0,H),unP(W,H)];
-  const minx=Math.min(...c.map(p=>p[0])),maxx=Math.max(...c.map(p=>p[0])),miny=Math.min(...c.map(p=>p[1])),maxy=Math.max(...c.map(p=>p[1]));
-  const step=62;
-  const paths=[new Path2D(),new Path2D(),new Path2D()];
-  for(let gx=Math.floor(minx/step);gx<=Math.ceil(maxx/step);gx++)for(let gy=Math.floor(miny/step);gy<=Math.ceil(maxy/step);gy++){
-    const h=hash(gx,gy);if(h<0.3)continue;
-    const wx=gx*step+h*44,wy=gy*step+hash(gy,gx)*44;
-    const p=P(wx,wy,0);if(p[0]<-30||p[0]>W+30||p[1]<-10||p[1]>H+10)continue;
-    const a=(Math.sin(T*0.9+h*40)+1)/2;const b=a>0.7?2:a>0.38?1:0;
-    const len=(5+h*9)*SC*(0.6+a*0.5),x=p[0]+Math.sin(T*0.6+h*9)*4*SC,y=p[1];
-    paths[b].moveTo(x-len,y);paths[b].quadraticCurveTo(x,y-2.6*SC,x+len,y);
+// ---------- water ----------
+// Tileable wave textures are generated once from integer-frequency sine waves (so they wrap seamlessly), lit by the sun,
+// then drawn as patterns on the isometric sea plane. Layers at different scales drift in different directions, so their
+// interference keeps changing like real water.
+let WATER=null;
+function makeWaterTex(N,count,seed,ridged){
+  let rs=seed*9973+1;const rnd=()=>{rs=(rs*16807)%2147483647;return rs/2147483647;};
+  const waves=[];
+  while(waves.length<count){
+    const ang=rnd()*Math.PI*2,f=ridged?3+rnd()*11:1+rnd()*4;
+    const fx=Math.round(Math.cos(ang)*f),fy=Math.round(Math.sin(ang)*f);if(!fx&&!fy)continue;
+    waves.push({fx,fy,ph:rnd()*6.283,a:1/Math.pow(Math.hypot(fx,fy),ridged?0.8:0.6)});
   }
-  ctx.lineCap='round';ctx.lineWidth=Math.max(1,SC*1.1);
-  ctx.strokeStyle='rgba(210,235,235,.07)';ctx.stroke(paths[0]);
-  ctx.strokeStyle='rgba(210,235,235,.16)';ctx.stroke(paths[1]);
-  ctx.strokeStyle='rgba(225,245,245,.28)';ctx.stroke(paths[2]);
+  const h=new Float32Array(N*N),TAU=Math.PI*2/N;let mn=1e9,mx=-1e9;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    let v=0;for(const w of waves){const sn=Math.sin((w.fx*x+w.fy*y)*TAU+w.ph);v+=w.a*(ridged?(1-Math.abs(sn))*(1-Math.abs(sn)):sn);}
+    h[y*N+x]=v;if(v<mn)mn=v;if(v>mx)mx=v;
+  }
+  for(let i=0;i<h.length;i++)h[i]=(h[i]-mn)/(mx-mn);
+  // slope toward the sun (upper-left of the screen) -> light, away -> shadow
+  const sh=new Float32Array(N*N);let big=0;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const gx=h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N],gy=h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x];
+    const v=0.85*gx+0.35*gy;sh[y*N+x]=v;if(Math.abs(v)>big)big=Math.abs(v);
+  }
+  const c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),img=g.createImageData(N,N),d=img.data;
+  for(let i=0;i<N*N;i++){
+    let L=sh[i]/(big*0.55)+(h[i]-0.5)*(ridged?0.5:0.7);L=clamp(L,-1,1.2);
+    let r,gg,bb,al;
+    if(L>0){r=222;gg=242;bb=240;al=L*(ridged?0.42:0.34);
+      if(L>1.0&&h[i]>0.62){r=255;gg=253;bb=238;al=0.85;} // sun glitter on crests
+    } else {r=6;gg=28;bb=36;al=-L*(ridged?0.36:0.42);}
+    d[i*4]=r;d[i*4+1]=gg;d[i*4+2]=bb;d[i*4+3]=Math.round(clamp(al,0,1)*255);
+  }
+  g.putImageData(img,0,0);
+  return c;
+}
+function initWater(){
+  const swell=makeWaterTex(256,16,7,false),chop=makeWaterTex(256,24,13,true);
+  WATER={layers:[
+    {tex:swell,tile:1100,vx:4,vy:2.5,alpha:0.55},
+    {tex:swell,tile:420,vx:-7,vy:5,alpha:0.4},
+    {tex:chop,tile:240,vx:9,vy:-6,alpha:0.5},
+    {tex:chop,tile:150,vx:-6,vy:-11,alpha:0.32},
+  ]};
+  for(const l of WATER.layers)l.pat=ctx.createPattern(l.tex,'repeat');
+}
+function drawWaves(){
+  if(!WATER)initWater();
+  const cs=[unP(0,0),unP(W,0),unP(0,H),unP(W,H)].map(q=>[q[0]-cam.x,q[1]-cam.y]);
+  const x0=Math.min(...cs.map(q=>q[0]))-40,x1=Math.max(...cs.map(q=>q[0]))+40,y0=Math.min(...cs.map(q=>q[1]))-40,y1=Math.max(...cs.map(q=>q[1]))+40;
+  const k=DPR*ISO*SC;
+  ctx.save();
+  // draw directly in sea-plane coordinates (relative to the camera); the canvas transform does the isometric projection
+  ctx.setTransform(k,k*0.5,-k,k*0.5,(W/2+cam.sx)*DPR,(H*HORIZON+cam.sy)*DPR);
+  for(const l of WATER.layers){
+    const sc=l.tile/l.tex.width;
+    try{l.pat.setTransform(new DOMMatrix([sc,0,0,sc,l.vx*T-cam.x,l.vy*T-cam.y]));}catch(_){}
+    ctx.globalAlpha=l.alpha;ctx.fillStyle=l.pat;ctx.fillRect(x0,y0,x1-x0,y1-y0);
+  }
+  ctx.restore();ctx.globalAlpha=1;
+  // whitecaps: little patches of foam that build up and fade away
+  const wc=[unP(0,0),unP(W,0),unP(0,H),unP(W,H)];
+  const minx=Math.min(...wc.map(q=>q[0])),maxx=Math.max(...wc.map(q=>q[0])),miny=Math.min(...wc.map(q=>q[1])),maxy=Math.max(...wc.map(q=>q[1]));
+  const step=90;
+  for(let gx=Math.floor(minx/step);gx<=Math.ceil(maxx/step);gx++)for(let gy=Math.floor(miny/step);gy<=Math.ceil(maxy/step);gy++){
+    const hv=hash(gx,gy);if(hv<0.55)continue;
+    const cyc=(T*0.16+hv*7)%1,life=Math.sin(Math.min(1,cyc/0.45)*Math.PI);if(cyc>0.45)continue;
+    const wx=gx*step+hv*60+T*4,wy=gy*step+hash(gy,gx)*60+T*2.5;
+    const q=P(wx,wy,0);if(q[0]<-30||q[0]>W+30||q[1]<-10||q[1]>H+10)continue;
+    const sz=(3+hv*5)*SC,al=0.32*life;
+    ell(q[0],q[1],sz*1.4,sz*0.45,`rgba(240,250,250,${al})`);
+    ell(q[0]+sz*0.9,q[1]+sz*0.15,sz*0.7,sz*0.25,`rgba(240,250,250,${al*0.8})`);
+    ell(q[0]-sz*0.8,q[1]+sz*0.2,sz*0.5,sz*0.18,`rgba(240,250,250,${al*0.7})`);
+  }
 }
 
 function drawRuin(r){
