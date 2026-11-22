@@ -18,6 +18,8 @@ Sound starts after the first tap (browsers require a user gesture).
 
 ## How it plays
 
+- **Intro:** a new raft opens with a short film: the polar ice melts, a glacier calves into the sea, a city drowns, and a lone raft
+  drifts on the new ocean. Skip it any time, or replay it with "Watch the intro" on the title screen.
 - **Row:** touch and drag anywhere for a floating joystick (arrow keys / WASD on desktop).
 - **Grapple:** get close to wood, bottles or supply crates and a rope with a grapple hook is thrown automatically to reel them in. Junk is ignored.
 - **Supply crates** contain one random item: a food tin, fresh water, or a spare part (screws, wire, metal parts).

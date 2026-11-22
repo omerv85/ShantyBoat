@@ -41,6 +41,9 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
   (spawn/despawn ring around the boat), grapple (`G`), fishing (`FISH`), rescues (`survivorT`, `spawnSurvivor`), particles, gulls, fish schools.
 - **Rendering in `render()`:** sea and waves → ripples → fish → sorted scene (ruins, items, boat) → rope/fishing line → particles → gulls →
   text → haze/vignette → mini map → low-health overlays → joystick.
+- **Intro film:** `INTRO`, `playIntro(done)`, `introFrame(dt)` and one draw function per scene (`ISCENES`, captions in `ICAPS`),
+  drawn on its own canvas (`#introcv`) from the main loop. Its sounds go through `SND.dest` = an intro bus; the ocean ambience sits
+  on `SND.amb` so the intro can hold it back until the last scene. Plays on a new game, not on Continue.
 - **States:** `menu`, `play`, `paused`, `over`; dying is `play` with `dieT >= 0`.
 - **Save:** `localStorage` key `shanty_save` (level, inventory, health, position). Level numbers are stored directly, so inserting a level
   shifts old saves.
