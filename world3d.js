@@ -461,7 +461,14 @@ function makeIcons(){
   const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.5,10),std(0xc9a24a,{metalness:0.8,roughness:0.35}));sh.position.y=-0.3;bolt.add(sh);
   bolt.position.set(0.3,0.3,0.25);bolt.rotation.set(0.5,0,-0.6);gear.add(bolt);gear.rotation.set(0.6,0,-0.5);
   const wood=fitModel('survival/resource-planks',1,null,null);
-  const out={food:shot(can),water:shot(jug),bottles:shot(pb),misc:shot(gear),wood:shot(wood)};
+  // health: a glossy red heart with bevelled edges
+  const hs=new THREE.Shape();
+  hs.moveTo(0,-0.9);hs.bezierCurveTo(-0.15,-0.7,-1,-0.2,-1,0.35);hs.bezierCurveTo(-1,0.8,-0.6,1.05,-0.32,1.05);
+  hs.bezierCurveTo(-0.12,1.05,0,0.9,0,0.72);hs.bezierCurveTo(0,0.9,0.12,1.05,0.32,1.05);
+  hs.bezierCurveTo(0.6,1.05,1,0.8,1,0.35);hs.bezierCurveTo(1,-0.2,0.15,-0.7,0,-0.9);
+  const hg=new THREE.ExtrudeGeometry(hs,{depth:0.32,bevelEnabled:true,bevelThickness:0.18,bevelSize:0.16,bevelSegments:6,curveSegments:24});hg.center();
+  const heart=new THREE.Mesh(hg,new THREE.MeshPhysicalMaterial({color:0xd8322a,roughness:0.22,clearcoat:1,clearcoatRoughness:0.15,sheen:0.3}));
+  const out={food:shot(can),water:shot(jug),bottles:shot(pb),misc:shot(gear),wood:shot(wood),heart:shot(heart,new V3(0.25,0.15,1))};
   r.dispose();r.forceContextLoss();
   return out;
 }
