@@ -197,14 +197,17 @@ function buildBoat(){
   if(L.motor){motorObj=outboard();motorObj.position.set(L.motor*U,dt-0.15,0);boatRoot.add(motorObj);}
   // crew
   for(const c of crewList(L)){
-    const o=c.o,anim=o.role==='row'||o.role==='motor'?'sit':o.role==='fish'?'holding-right':o.role==='farm'?'pick-up':'holding-right';
+    const o=c.o,anim=o.role==='motor'?'sit':o.role==='row'?'holding-both':o.role==='fish'?'holding-right':o.role==='farm'?'pick-up':'holding-right';
     const p=person(o.idx,anim);p.position.set(c.pl[0]*U,dt+(anim==='sit'?0.32:0),c.pl[1]*U);
     if(anim==='sit'){const seat=fitModel('pirate/crate',0.5,0.34,0.5);seat.position.set(c.pl[0]*U-0.12,dt,c.pl[1]*U);boatRoot.add(seat);}
     if(o.role==='farm'&&o.pot)p.rotation.y=-Math.atan2(o.pot[1]-c.pl[1],o.pot[0]-c.pl[0]);
     if(o.role==='fish'){const rod=mesh(new THREE.CylinderGeometry(0.015,0.025,2.4,5),mat(0x4a3424));rod.position.set(0.55,1.55,0.15);rod.rotation.z=-0.55;p.add(rod);p.userData.rodTip=new V3(1.15,2.6,0.15);}
     boatRoot.add(p);crew.push({g:p,c,home:p.position.clone(),homeRot:p.rotation.y});
-    if(o.role==='row')for(const s of [-1,1]){const g=new THREE.Group();const pd=fitModel('pirate/tool-paddle',null,2.6,null);pd.rotation.z=Math.PI/2;pd.position.x=2.3;g.add(pd);
-      g.position.set(c.pl[0]*U-0.05,dt+0.72,c.pl[1]*U+s*0.42);g.userData.s=s;boatRoot.add(g);oars.push(g);}
+    // one long sculling oar over the stern: the rower stands facing aft, both hands on the handle, and sweeps it side to side
+    if(o.role==='row'){p.rotation.y=Math.PI;
+      const g=new THREE.Group(),tilt=new THREE.Group();g.add(tilt);
+      const pd=fitModel('pirate/tool-paddle',null,2.9,null);pd.rotation.z=Math.PI/2;pd.position.x=2.55;tilt.add(pd);
+      tilt.rotation.z=-0.36;g.position.set(c.pl[0]*U-0.38,dt+0.78,c.pl[1]*U);g.userData.tilt=tilt;boatRoot.add(g);oars.push(g);}
   }
 }
 function edgeBottles(x0,x1,y0,y1,y=-0.08){
@@ -339,7 +342,7 @@ function render(){
     boatRoot.position.set(boat.x*U,boat.bob*U*0.6,boat.y*U);
     boatRoot.rotation.set(Math.sin(T*1.1)*0.02,-boat.a,Math.sin(T*0.9+1)*0.025);
     const bc=Math.cos(boat.row),sw=Math.sin(boat.row);
-    for(const o of oars){o.visible=!dead;o.rotation.y=o.userData.s*(1.3+sw*0.42);o.rotation.x=-o.userData.s*(0.3-(bc>0?0.18*bc:0));}
+    const yaw=oarYaw();for(const o of oars){o.visible=!dead;o.rotation.y=Math.PI+yaw;o.userData.tilt.rotation.x=bc*0.35;} // blade feathers at each end of the sweep
     if(motorObj){const run=!dead&&sp>5;motorObj.position.y=deckTop-0.15+(run?Math.sin(T*45)*0.012:0);}
     if(antenna){antenna.userData.bar.rotation.y=T*2.5;antenna.userData.lamp.visible=(T%1.2)<0.35;}
     for(const cm of crew){const o=cm.c.o,g=cm.g;
@@ -349,7 +352,7 @@ function render(){
         if(k>0){const d=fallDest(cm.c.pl);g.position.set(lerp(cm.home.x,d[0]*U,k),cm.home.y+Math.sin(k*Math.PI)*0.7-k*1.2-(k>=1?Math.min(2,(dieT-fallTime(o.idx)-FALL_DUR)*0.6):0),lerp(cm.home.z,d[1]*U,k));}
         g.visible=g.position.y>-1.6;
       } else {g.visible=true;
-        if(o.role==='row')g.rotation.z=Math.sin(boat.row)*0.06;
+        if(o.role==='row'){g.rotation.y=Math.PI+oarYaw()*0.55;g.rotation.z=0;}
         if(o.grapple&&o.role!=='row'){play(g,G.st==='throw'?'attack-melee-right':'holding-right',G.st==='throw');}
         if(o.role==='fish')play(g,FISH.st==='cast'?'attack-melee-right':'holding-right',FISH.st==='cast');
       }}

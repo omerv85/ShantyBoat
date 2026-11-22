@@ -874,7 +874,9 @@ function playerWorld(z){const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a
 function grapPos(){const L=LEVELS[level];return L.front||L.player;}
 function grapWorld(z){const p=grapPos(),f=frame(boat.x,boat.y,boat.a);const w=rot(f,p[0],p[1]);return [w[0],w[1],z+boat.bob];}
 function oarSide(){const c=Math.cos(boat.a),s=Math.sin(boat.a);return (-s+c)>0?1:-1;}
-function oarBlade(){const L=LEVELS[level];const f=frame(boat.x,boat.y,boat.a);return rot(f,L.player[0]-Math.sin(boat.row)*13,L.player[1]+oarSide()*19);}
+// single sculling oar over the stern (see world3d.js): it sweeps side to side by oarYaw(); the blade is about 33 units aft of the rower
+function oarYaw(){return Math.sin(boat.row)*0.38;}
+function oarBlade(){const L=LEVELS[level],y=oarYaw(),f=frame(boat.x,boat.y,boat.a);return rot(f,L.player[0]-5-Math.cos(y)*29,L.player[1]+Math.sin(y)*29);}
 
 function updateGrapple(dt,L){
   if(G.st==='idle'){
