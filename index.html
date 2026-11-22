@@ -34,7 +34,6 @@
   #heart{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;margin:-4px -2px -4px 0;
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));animation:beat 1.6s infinite}
   #heart svg,#heart img{width:100%;height:100%;display:block}
-  #hnum{font-size:13px;font-weight:800;min-width:26px;text-align:right;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.6)}
   #pause{margin-left:auto}
   /* health bar: dark trough, glossy gradient fill (green / amber / red), tick marks every 10% and a shine on top */
   #hbar{flex:1;position:relative;height:16px;border-radius:8px;background:linear-gradient(#0d1516,#1d2a2c);overflow:hidden;
@@ -138,7 +137,6 @@
     <div id="health">
       <div id="heart"><svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11.2A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.8C20 15.8 12 21 12 21z" fill="#e2553f" stroke="#7a1f14" stroke-width="1.2"/></svg></div>
       <div id="hbar"><div id="hfill"></div><div id="hticks"></div><div id="hshine"></div></div>
-      <b id="hnum">100</b>
     </div>
     <button class="iconbtn" id="pause" aria-label="Pause"><img src="icons/pause.png" alt=""></button>
     <button class="iconbtn" id="mute" aria-label="Toggle sound"></button>
@@ -570,7 +568,7 @@ function updateHUD(){
     $('c-'+k).classList.toggle('empty',inv[k]===0);}}
   const hf=$('hfill'),hb=$('hbar'),hp=Math.max(0,health);hf.style.width=hp.toFixed(1)+'%';
   hb.classList.toggle('mid',hp<=55&&hp>28);hb.classList.toggle('bad',hp<=28);
-  const hn=Math.ceil(hp);if(shownHp!==hn){$('hnum').textContent=hn;
+  const hn=Math.ceil(hp);if(shownHp!==hn){
     if(shownHp>=0&&hn>shownHp+1){hb.classList.remove('heal');void hb.offsetWidth;hb.classList.add('heal');} // flash when eating/drinking
     shownHp=hn;}
   $('health').classList.toggle('low',health<LOW);$('health').classList.toggle('crit',health<=CRIT);
