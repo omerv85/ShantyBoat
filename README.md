@@ -18,9 +18,6 @@ Sound starts after the first tap (browsers require a user gesture).
 
 ## How it plays
 
-The game is drawn as pixel art: everything renders at low resolution, then is scaled up and snapped to a fixed palette.
-
-
 - **Intro:** the page opens with a short film: the polar ice melts, a glacier calves into the sea, a city drowns, and a lone raft
   drifts on the new ocean. Sound is on by default; browsers that block autoplay hold it until
   your first tap. Skip it any time, or replay it with

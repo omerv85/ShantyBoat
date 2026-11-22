@@ -12,7 +12,7 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 ## Project layout
 
 - `index.html` — the entire game: HTML HUD, CSS, and one `<script>` (canvas 2D rendering + Web Audio). No build step, no dependencies
-  (only the Google Font "Pixelify Sans").
+  (only the Google Font "Pirata One" for titles).
 - `manifest.webmanifest` — web app manifest (`display: fullscreen`, portrait) for home-screen installs.
 - `.claude/launch.json` — static dev server (`python -m http.server 8765`) for previewing.
 - `README.md` — player-facing description and level table.
@@ -53,8 +53,4 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 
 - Mobile first: touch joystick anywhere, HUD in HTML overlays (pointer-events only on buttons), safe-area insets respected.
 - Draw everything procedurally (no image assets); keep new art in the same flat, muted post-apocalyptic palette.
-- **Pixel art pipeline:** the game and intro draw into low-resolution canvases (`PX` screen pixels per art pixel, `DPR = 1/PX`) that are
-  scaled up with `image-rendering: pixelated`. Each frame then goes through `pixelPass()`, which snaps colours to `PALETTE` with a
-  light ordered dither. Draw text with `uiText()` (not `ctx.fillText`) so it lands sharp on the `#ui` overlay canvas. Avoid fine
-  sub-pixel detail (thin lines and tiny textures turn into noise); snap small effects to the `PX` grid. The font is "Pixelify Sans".
 - Adding a level: add an entry to `LEVELS`, `DESC`, `ZOOMS`, either `COSTS` or `RESCUES`, bump `MAXLEVEL`, and update the README table.
