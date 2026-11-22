@@ -307,6 +307,7 @@ const DESC={2:'A bigger raft with a driftwood tent',3:'Outrigger rafts lashed to
   10:'A fisher joins the crew and catches fish for food',
   11:'A farmer and a tomato plant join on a new stern raft'};
 const ZOOMS=[1,1,0.9,0.8,0.8,0.8,0.74,0.74,0.72,0.68,0.68,0.62];
+const MOTOR_SPEED=150; // top speed with the outboard motor (rowing tops out at 78 - 3 per level)
 const DRAIN=0.55, EAT=30, DRINK=25, LOW=30, CRIT=10;
 const STYLE1={rag:'#8b7a57',sleeve:'#7d6c4b',patch:'#6a5a3c',legs:'#4e4232',hair:'#3a2a1c',band:'#a8392b',skin:'#cf9c74',hairStyle:'messy',beard:'stubble',rags:true,belt:true};
 const STYLE2={rag:'#5f7480',sleeve:'#556a78',patch:'#465864',legs:'#3d3b36',hair:'#b5673a',band:'#2f6f8f',skin:'#e2b28e',hairStyle:'ponytail',scarf:'#3a8f8a',rags:true};
@@ -735,8 +736,9 @@ function update(dt){
   const [ix,iy,im]=building||dieT>=0?[0,0,0]:inputVec();
   let tx=0,ty=0;
   if(im>0.08){const K=window.JOYK||2;let wx=ix+K*iy,wy=K*iy-ix;const m=Math.hypot(wx,wy)||1;tx=wx/m*im;ty=wy/m*im;}
-  const maxV=L.motor?100:78-level*3;
-  const acc=1-Math.exp(-dt*(im>0.08?1.8:0.9));
+  // rowing slows a little as the raft grows; the outboard motor (level 7+) is much faster and picks up speed quicker
+  const maxV=L.motor?MOTOR_SPEED:78-level*3;
+  const acc=1-Math.exp(-dt*(im>0.08?(L.motor?2.6:1.8):0.9));
   boat.vx=lerp(boat.vx,tx*maxV,acc);boat.vy=lerp(boat.vy,ty*maxV,acc);
   // slow ocean current
   boat.x+=(boat.vx+3)*dt;boat.y+=(boat.vy+1.5)*dt;
@@ -755,7 +757,7 @@ function update(dt){
     boat.lastCos=c;
   }
   // outboard motor: sound, prop wash & exhaust
-  SND.engine(!!L.motor&&state==='play'&&dieT<0,clamp(sp/100,0,1));
+  SND.engine(!!L.motor&&state==='play'&&dieT<0,clamp(sp/MOTOR_SPEED,0,1));
   // wake
   boat.wakeT-=dt;
   if(sp>14&&boat.wakeT<=0){boat.wakeT=L.motor?0.07:0.12;const f=frame(boat.x,boat.y,boat.a);
