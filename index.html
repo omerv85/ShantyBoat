@@ -325,6 +325,8 @@ const boat={x:0,y:0,vx:0,vy:0,a:-Math.PI*0.75,bob:0,row:0,lastCos:0,fx:1,wakeT:0
 let items=[], parts=[], texts=[], gulls=[], schools=[];
 let building=null, usedJoystick=false, lowHintAt=-99;
 let hbT=0, beatFlash=0, survivorT=-1, dieT=-1;
+const FARM_EVERY=8; // seconds between tomatoes from the farmer's plant
+const FARM={t:0};
 const FISH={st:'idle',t:0,cd:1.5,school:null,bx:0,by:0,bz:0,caught:false,tip:null};
 const G={st:'idle',item:null,t:0,dur:0,cd:0.6,hx:0,hy:0,hz:0,sx:0,sy:0};
 
@@ -801,6 +803,9 @@ function update(dt){
   // grapple
   updateGrapple(dt,L);
   if(L.fisher)updateFishing(dt,L);
+  // the farmer picks a ripe tomato every few seconds: +1 food
+  if(L.farmer&&dieT<0){FARM.t+=dt;if(FARM.t>=FARM_EVERY){FARM.t=0;inv.food++;
+    const p=rot(frame(boat.x,boat.y,boat.a),L.pot[0],L.pot[1]);floatText(p[0],p[1],'+1 food (tomato)','#ff9a85');SND.collect('bottle');}}
 
   // building
   if(building){

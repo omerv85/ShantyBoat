@@ -46,7 +46,7 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
   `world3d.js` gives crew index 0–3 a Kenney character (`CHAR`) with animations (sit, holding, throw, pick-up, die) and plays the
   fall-overboard death from `fallTime`/`fallDest` (`dieT`).
 - **Systems in `update(dt)`:** health drain + heartbeat (`LOW`/`CRIT`), movement and rowing/motor, ruins collision, items
-  (spawn/despawn ring around the boat), grapple (`G`), fishing (`FISH`), rescues (`survivorT`, `spawnSurvivor`), particles, gulls, fish schools.
+  (spawn/despawn ring around the boat), grapple (`G`), fishing (`FISH`), farmer tomatoes (`FARM`, +1 food every `FARM_EVERY` s), rescues (`survivorT`, `spawnSurvivor`), particles, gulls, fish schools.
 - **Zoom:** `ZOOMS[level]` (per level) × `userZoom` (player, 0.65–1.7, buttons/wheel/+/−, saved as `shanty_zoom`) × `CLOSER` in world3d.js.
 - **Rendering:** `render()` calls `R3D.render()` (world3d.js: camera follow + zoom, water, boat rebuilt from `LEVELS[level]` by
   `buildBoat()`, items/ruins/gulls/fish/particles synced to the game arrays each frame), then draws the 2D overlay on top.

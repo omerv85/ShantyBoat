@@ -60,7 +60,7 @@ game's own 3D models.
 | 8 | 32 wood, 18 plastic | Center and front rafts become one rowboat hull with wooden sides |
 | 9 | 40 wood, 24 plastic | Catamaran pontoons replace the side rafts |
 | 10 | Rescue the fisher shown on the mini map | The fisher joins the crew and casts at passing schools of fish, catching food |
-| 11 | Rescue the farmer shown on the mini map | A stern raft is added behind the boat with the farmer and their potted tomato plant; the motor moves to its back |
+| 11 | Rescue the farmer shown on the mini map | A stern raft is added behind the boat with the farmer and their potted tomato plant (a tomato = +1 food every 8 seconds); the motor moves to its back |
 
 Stranded people appear far away, out of view, a few seconds after you reach level 5, 9 or 10. They stay where they are until
 you reach them, and a yellow **!** on the mini map shows the way (pinned to the map's edge when they're far off).
