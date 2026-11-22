@@ -203,8 +203,7 @@ function buildBoat(){
   if(L.hull){const b=fitModel('pirate/boat-row-large',null,null,null),sz=b.userData.size,long=sz.x>=sz.z?'x':'z';
     const h=fitModel('pirate/boat-row-large',long==='x'?121*U:54*U,1.15,long==='x'?54*U:121*U);if(long==='z')h.rotation.y=Math.PI/2;
     h.position.set(29.5*U,-0.55,0);boatRoot.add(noPaddles(h));deckTop=0.13;
-    addHullFloor(h,0.86,0.76);
-    if(L.bottles)edgeBottles(-31,90,-27,27,-0.25);}
+    addHullFloor(h,0.86,0.76);}
   const dt=deckTop;
   // tent or shack
   if(L.tent){const t=fitModel('survival/tent-canvas',32*U,1.8,30*U);t.position.set(-2*U,dt,0);boatRoot.add(t);}
