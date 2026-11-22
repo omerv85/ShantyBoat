@@ -13,6 +13,8 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 
 - `index.html` — the entire game: HTML HUD, CSS, and one `<script>` (canvas 2D rendering + Web Audio). No build step, no dependencies
   (only the Google Font "Pirata One" for titles).
+- `prototype3d.html` — standalone three.js look-and-feel prototype (three@0.160.0 from jsdelivr via an import map; Water and Sky
+  from three's examples; all models built in code). `window.proto` exposes `boat`/`ruins` for console testing.
 - `manifest.webmanifest` — web app manifest (`display: fullscreen`, portrait) for home-screen installs.
 - `.claude/launch.json` — static dev server (`python -m http.server 8765`) for previewing.
 - `README.md` — player-facing description and level table.

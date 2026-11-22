@@ -16,6 +16,12 @@ python -m http.server 8765
 Then open `http://localhost:8765`. To play on a phone, open `http://<your-computer-ip>:8765` on the same Wi-Fi.
 Sound starts after the first tap (browsers require a user gesture).
 
+## 3D prototype
+
+`prototype3d.html` is a look-and-feel test of a three.js version: low-poly models built in code, reflective water, real
+shadows, a camera that follows the boat, rowing, grappling and drowned buildings. Switch between raft, shack and catamaran
+with the buttons at the top.
+
 ## How it plays
 
 - **Intro:** the page opens with a short film: the polar ice melts, a glacier calves into the sea, a city drowns, and a lone raft
