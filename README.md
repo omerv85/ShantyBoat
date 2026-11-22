@@ -19,7 +19,8 @@ Sound starts after the first tap (browsers require a user gesture).
 ## How it plays
 
 - **Intro:** the page opens with a short film: the polar ice melts, a glacier calves into the sea, a city drowns, and a lone raft
-  drifts on the new ocean. Tap for sound (browsers block audio until you tap), skip it any time, or replay it with
+  drifts on the new ocean. Sound is on by default; browsers that block autoplay hold it until
+  your first tap. Skip it any time, or replay it with
   "Watch the intro" on the title screen.
 - **Row:** touch and drag anywhere for a floating joystick (arrow keys / WASD on desktop).
 - **Grapple:** get close to wood, bottles or supply crates and a rope with a grapple hook is thrown automatically to reel them in. Junk is ignored.

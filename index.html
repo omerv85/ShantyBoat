@@ -1938,8 +1938,8 @@ function playIntro(done){
   const I=INTRO;Object.assign(I,{on:true,t:0,done,started:false,ps:[],rings:[],flags:{}});
   I.el=$('intro');I.cv=$('introcv');I.g=I.cv.getContext('2d');
   I.el.style.opacity=1;I.el.classList.remove('hidden');$('start').classList.add('hidden');I.seen=true;
-  $('tapsound').classList.toggle('hidden',!!SND.ctx);
-  introAudio(0);
+  I.audioOn=false;$('tapsound').classList.remove('hidden');
+  tryIntroSound();
 }
 function skipIntro(){
   const I=INTRO;if(!I.on||I.t>=INTRO_LEN-INTRO_FADE)return;
@@ -1968,8 +1968,19 @@ function introFrame(dt){
 }
 $('skip').addEventListener('click',e=>{e.stopPropagation();skipIntro();});
 // the intro starts on page load without sound; the first tap unlocks audio and joins in at the current moment
-$('intro').addEventListener('pointerdown',()=>{if(SND.ctx||!INTRO.on)return;SND.init();$('tapsound').classList.add('hidden');
-  if(INTRO.t<INTRO_LEN-INTRO_FADE)introAudio(INTRO.t);});
+// Sound is on by default: we try to start audio right away. Browsers that block autoplay keep the audio context suspended
+// until the first tap or key press, so the "tap for sound" hint stays up until then and the sound joins in at that moment.
+function introSoundOn(){
+  if(INTRO.audioOn||!INTRO.on)return;INTRO.audioOn=true;$('tapsound').classList.add('hidden');
+  if(INTRO.t<INTRO_LEN-INTRO_FADE)introAudio(INTRO.t);
+}
+function tryIntroSound(){
+  if(!INTRO.on||INTRO.audioOn)return;
+  SND.init();const c=SND.ctx;if(!c)return;
+  if(c.state==='running')introSoundOn();
+  else{const p=c.resume();if(p&&p.then)p.then(()=>{if(c.state==='running')introSoundOn();}).catch(()=>{});}
+}
+for(const ev of ['pointerdown','keydown','touchend'])document.addEventListener(ev,tryIntroSound,{capture:true});
 
 // menu backdrop: some floating debris
 (function(){for(let i=0;i<60;i++){const a=rand(6.3),d=rand(40,900);items.push(makeItem(Math.cos(a)*d,Math.sin(a)*d));}})();
