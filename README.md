@@ -35,6 +35,7 @@ game's own 3D models.
 - **Row:** touch and drag anywhere for a floating joystick (arrow keys / WASD on desktop).
 - **Grapple:** get close to wood, bottles or supply crates and a rope with a grapple hook is thrown automatically to reel them in. Junk is ignored.
 - **Supply crates** contain one random item: a food tin, fresh water, or a spare part (screws, wire, metal parts).
+- **Washing machines and fridges** float by now and then. They act like supply crates, but anything can be inside: food, water, a part, wood or plastic.
 - **Health** drains slowly. Tap the food or water counter to eat or drink. Below 30% the health bar flashes and a heartbeat
   starts; at 10% the whole screen flashes and the heartbeat gets faster and louder. At zero the whole crew faints,
   then tumbles overboard into the water with a dying sound.

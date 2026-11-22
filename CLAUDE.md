@@ -51,7 +51,8 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 - **Rendering:** `render()` calls `R3D.render()` (world3d.js: camera follow + zoom, water, boat rebuilt from `LEVELS[level]` by
   `buildBoat()`, items/ruins/gulls/fish/particles synced to the game arrays each frame), then draws the 2D overlay on top.
 - **3D models:** `NEED` in world3d.js lists the GLBs to load; `fitModel(key,x,y,z)` clones one fitted to a size in metres;
-  `weather()` mutes Kenney's palette; buildings get `grimy()` materials. Procedural props: tomato pot, outboard motor, gulls, junk.
+  `weather()` mutes Kenney's palette; buildings get `grimy()` materials. Procedural props: tomato pot, outboard motor, gulls, junk,
+  floating washing machine / fridge (`applianceMesh`; these are `crate` items with `it.sub` set, and their loot can be any resource).
 - **Intro film:** `INTRO`, `playIntro(done)`, `introFrame(dt)` and one draw function per scene (`ISCENES`, captions in `ICAPS`),
   drawn on its own canvas (`#introcv`) from the main loop. Its sounds go through `SND.dest` = an intro bus; the ocean ambience sits
   on `SND.amb` so the intro can hold it back until the last scene. Plays automatically on page load with sound on by default (`tryIntroSound` starts audio at once;

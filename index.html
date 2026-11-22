@@ -363,7 +363,10 @@ function makeItem(x,y){
   const it={kind,x,y,a:rand(Math.PI*2),ph:rand(10),bz:0,taken:false,vx:0,vy:0};
   if(kind==='wood'){it.col=pick(WOODS);it.len=rand(20,30);it.r=15;}
   if(kind==='bottle'){it.col=pick(BOTTLES);it.cap=pick(CAPS);it.r=8;}
-  if(kind==='crate'){it.col=Math.random()<0.7?C.crate:C.orange;it.r=11;}
+  if(kind==='crate'){const a=Math.random(); // plastic box, or a floating washing machine / fridge (anything can be inside)
+    if(a<0.2){it.sub='washer';it.col=[226,224,214];it.r=12;}
+    else if(a<0.38){it.sub='fridge';it.col=[222,218,204];it.r=14;}
+    else{it.col=Math.random()<0.7?C.crate:C.orange;it.r=11;}}
   if(kind==='junk'){it.sub=pick(['tire','bag','can','foam','net','blackbag','blackbag']);it.r=8;it.col=pick([[200,60,50],[60,120,180],[190,190,190]]);
     if(Math.random()<0.3&&it.sub!=='can')it.gull={ph:rand(6),fx:Math.random()<0.5?1:-1};}
   return it;
@@ -960,9 +963,11 @@ function collect(it){
   if(it.kind==='wood'){const n=it.len>26?2:1;inv.wood+=n;txt='+'+n+' wood';col='#e6c08a';}
   else if(it.kind==='bottle'){inv.bottles++;txt='+1 plastic';col='#bfeaff';}
   else if(it.kind==='crate'){
-    const r=pick(['food','water','misc']);inv[r]++;
-    txt=r==='food'?'+1 food tin':r==='water'?'+1 fresh water':'+1 '+pick(['screws','wire','metal parts']);
-    col=r==='food'?'#ffb39c':r==='water'?'#8fd2ff':'#d9dee2';
+    // plastic boxes hold food, water or parts; a washing machine or fridge can hold anything
+    const r=pick(it.sub?['food','water','misc','wood','bottles']:['food','water','misc']);inv[r]++;
+    txt=r==='food'?'+1 food tin':r==='water'?'+1 fresh water':r==='wood'?'+1 wood':r==='bottles'?'+1 plastic':'+1 '+pick(['screws','wire','metal parts']);
+    col=r==='food'?'#ffb39c':r==='water'?'#8fd2ff':r==='wood'?'#e6c08a':r==='bottles'?'#bfeaff':'#d9dee2';
+    if(it.sub)txt+=it.sub==='fridge'?' (from the fridge)':' (from the washer)';
     for(let i=0;i<10;i++)chip(it.x,it.y,6,it.col);
   }
   SND.collect(it.kind);splash(it.x,it.y,6,20);

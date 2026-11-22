@@ -251,7 +251,8 @@ function itemMesh(it){
   switch(it.kind){
     case 'wood':g=fitModel(Math.random()<0.5?'survival/resource-planks':'pirate/platform-planks',it.len*U*0.85,null,null);break;
     case 'bottle':g=fitModel(Math.random()<0.6?'pirate/bottle':'survival/bottle',null,0.55,null);g.userData.inner.rotation.z=Math.PI/2;g.userData.inner.position.y+=0.12;break;
-    case 'crate':{g=new THREE.Group();const c=rgbHex(it.col);
+    case 'crate':{if(it.sub){g=applianceMesh(it.sub);break;}
+      g=new THREE.Group();const c=rgbHex(it.col);
       const b=mesh(new THREE.BoxGeometry(1.1,0.72,0.9),mat(c,{roughness:0.55}));b.position.y=0.25;g.add(b);
       const rim=mesh(new THREE.BoxGeometry(1.16,0.1,0.96),mat(new THREE.Color(c).multiplyScalar(0.75).getHex(),{roughness:0.55}));rim.position.y=0.62;g.add(rim);
       for(const x of [-0.3,0.3]){const s=mesh(new THREE.BoxGeometry(0.06,0.5,0.92),mat(new THREE.Color(c).multiplyScalar(0.8).getHex()));s.position.set(x,0.22,0);g.add(s);}
@@ -261,6 +262,31 @@ function itemMesh(it){
   }
   if(it.gull){const gl=gullMesh();gl.scale.setScalar(0.75);gl.position.y=it.sub==='foam'?0.28:0.2;gl.userData.wings.forEach(w=>w.rotation.x=0);
     gl.userData.wings[0].scale.z=0.35;gl.userData.wings[1].scale.z=0.35;gl.rotation.y=it.gull.fx>0?0:Math.PI;g.add(gl);g.userData.gull=gl;}
+  return g;
+}
+// A washing machine or fridge floating on its back, mostly under water, door facing up.
+function applianceMesh(sub){
+  const g=new THREE.Group(),body=mat(0xd8d5ca,{roughness:0.45}),dark=mat(0x2a2e30,{roughness:0.4}),
+    rust=mat(0x7a4a26,{roughness:1}),chrome=mat(0x9aa0a2,{metalness:0.7,roughness:0.35});
+  const stain=(x,z,w,d)=>{const s=mesh(new THREE.BoxGeometry(w,0.02,d),rust);s.position.set(x,0,z);return s;};
+  if(sub==='washer'){
+    const b=mesh(new THREE.BoxGeometry(0.85,0.6,0.85),body);b.position.y=0;g.add(b);
+    const top=0.3;
+    const ring=mesh(new THREE.TorusGeometry(0.26,0.05,8,20),chrome);ring.rotation.x=Math.PI/2;ring.position.set(0.06,top+0.02,0);g.add(ring);
+    const glass=mesh(new THREE.CylinderGeometry(0.22,0.22,0.03,20),new THREE.MeshStandardMaterial({color:0x1d3440,roughness:0.15,metalness:0.2,transparent:true,opacity:0.85}));
+    glass.position.set(0.06,top+0.02,0);g.add(glass);
+    const panel=mesh(new THREE.BoxGeometry(0.16,0.03,0.8),mat(0xbcb8ac,{roughness:0.5}));panel.position.set(-0.33,top+0.01,0);g.add(panel);
+    const knob=mesh(new THREE.CylinderGeometry(0.05,0.05,0.05,10),dark);knob.position.set(-0.33,top+0.04,0.25);g.add(knob);
+    for(const [x,z,w,d] of [[0.3,-0.33,0.18,0.12],[-0.2,0.36,0.25,0.08]]){const s=stain(x,z,w,d);s.position.y=top+0.005;g.add(s);}
+  } else {
+    const b=mesh(new THREE.BoxGeometry(1.75,0.62,0.72),body);b.position.y=0;g.add(b);
+    const top=0.31;
+    const seam=mesh(new THREE.BoxGeometry(0.025,0.02,0.72),dark);seam.position.set(0.38,top+0.005,0);g.add(seam); // freezer / fridge doors
+    for(const x of [0.48,0.28]){const h=mesh(new THREE.BoxGeometry(x>0.4?0.3:0.55,0.05,0.05),chrome);h.position.set(x>0.4?x+0.2:x-0.3,top+0.04,-0.27);g.add(h);}
+    const gasket=mesh(new THREE.BoxGeometry(1.77,0.04,0.74),dark);gasket.position.y=top-0.05;g.add(gasket);
+    for(const [x,z,w,d] of [[-0.55,0.2,0.3,0.14],[0.7,-0.1,0.16,0.22],[-0.1,-0.3,0.22,0.07]]){const s=stain(x,z,w,d);s.position.y=top+0.005;g.add(s);}
+  }
+  g.scale.setScalar(1.35); // a bit larger than life so they read at game zoom, like the plastic boxes
   return g;
 }
 function junkMesh(it){
