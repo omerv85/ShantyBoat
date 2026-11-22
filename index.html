@@ -50,6 +50,12 @@
   .iconbtn{pointer-events:auto;width:40px;height:40px;border-radius:50%;border:1px solid var(--panel-edge);
     background:var(--panel);color:var(--ink);font-size:18px;display:grid;place-items:center;cursor:pointer;flex:none;padding:0}
   .iconbtn svg{width:20px;height:20px}
+  .iconbtn img{width:22px;height:22px;display:block;pointer-events:none}
+  .ctr img.ico{width:24px;height:24px;flex:none;margin:-2px 0}
+  #upgrade .c img.ico{width:18px;height:18px}
+  #zoombox{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(env(safe-area-inset-bottom) + 66px);z-index:5;
+    display:flex;flex-direction:column;gap:8px}
+  #zoombox.hidden{display:none}
   .ctr{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--panel-edge);
     border-radius:12px;padding:5px 9px 5px 6px;font-weight:700;font-size:15px;min-width:62px;position:relative;
     font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.6)}
@@ -119,7 +125,7 @@
       <svg viewBox="0 0 24 24"><path d="M12 21s-8-5.2-8-11.2A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.8C20 15.8 12 21 12 21z" fill="#e2553f" stroke="#7a1f14" stroke-width="1.2"/></svg>
       <div id="hbar"><div id="hfill"></div></div>
     </div>
-    <button class="iconbtn" id="pause" aria-label="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <button class="iconbtn" id="pause" aria-label="Pause"><img src="icons/pause.png" alt=""></button>
     <button class="iconbtn" id="mute" aria-label="Toggle sound"></button>
   </div>
   <div id="hudrow">
@@ -135,7 +141,8 @@
   </div>
 </div>
 
-<button class="iconbtn hidden" id="fs" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+<button class="iconbtn hidden" id="fs" aria-label="Full screen"><img src="icons/larger.png" alt=""></button>
+<div id="zoombox" class="hidden"><button class="iconbtn" id="zin" aria-label="Zoom in"><img src="icons/zoomIn.png" alt=""></button><button class="iconbtn" id="zout" aria-label="Zoom out"><img src="icons/zoomOut.png" alt=""></button></div>
 <button id="upgrade" class="hidden"></button>
 <div id="toast"></div>
 
@@ -516,7 +523,8 @@ cv.addEventListener('pointermove',e=>{
 });
 const endJoy=e=>{if(e.pointerId===joy.id){joy.active=false;joy.id=null;joy.vx=joy.vy=0;}};
 cv.addEventListener('pointerup',endJoy);cv.addEventListener('pointercancel',endJoy);
-addEventListener('keydown',e=>{const kk=e.key.toLowerCase();if(kk==='p'||kk==='escape'){setPaused(state==='play');return;}if(state!=='play')return;keys[kk]=true;if(e.key===' '&&state==='play')tryUpgrade();});
+addEventListener('keydown',e=>{const kk=e.key.toLowerCase();if(kk==='p'||kk==='escape'){setPaused(state==='play');return;}
+  if(state==='play'&&(kk==='+'||kk==='='))setUserZoom(userZoom*1.2);if(state==='play'&&(kk==='-'||kk==='_'))setUserZoom(userZoom/1.2);if(state!=='play')return;keys[kk]=true;if(e.key===' '&&state==='play')tryUpgrade();});
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
 function inputVec(){
   let x=joy.vx,y=joy.vy;
@@ -529,6 +537,16 @@ function inputVec(){
 
 // ---------- HUD ----------
 const ICONS={wood:$('c-wood').querySelector('svg').outerHTML,bottles:$('c-bottles').querySelector('svg').outerHTML,misc:$('c-misc').querySelector('svg').outerHTML};
+// world3d.js renders an icon for each counter from the game's own 3D models and hands them over here (data URLs)
+function setHudIcons(urls){
+  for(const k in urls){const el=$('c-'+k);if(!el)continue;const old=el.querySelector('svg,img.ico');
+    const img=document.createElement('img');img.className='ico';img.src=urls[k];img.alt='';old.replaceWith(img);
+    if(k in ICONS)ICONS[k]=`<img class="ico" src="${urls[k]}" alt="">`;}
+  upKey='';
+}
+// player zoom on top of the per-level zoom: buttons, mouse wheel and +/- keys; remembered between visits
+let userZoom=1;try{userZoom=clamp(parseFloat(localStorage.getItem('shanty_zoom'))||1,0.65,1.7);}catch(_){}
+function setUserZoom(z){userZoom=clamp(z,0.65,1.7);try{localStorage.setItem('shanty_zoom',userZoom.toFixed(2));}catch(_){}}
 const shown={};
 function pop(k){const e=$('c-'+k);e.classList.remove('pop');void e.offsetWidth;e.classList.add('pop');}
 let upKey='';
@@ -538,6 +556,7 @@ function updateHUD(){
   const hf=$('hfill');hf.style.width=health.toFixed(1)+'%';
   hf.style.backgroundColor=health>55?'#7fd36b':health>28?'#f2c14e':'#e2553f';
   $('health').classList.toggle('low',health<LOW);$('health').classList.toggle('crit',health<=CRIT);
+  $('zoombox').classList.toggle('hidden',!(state==='play'||state==='paused'));
   const ub=$('upgrade');
   if(level>=MAXLEVEL||building||state!=='play'||dieT>=0||!COSTS[level+1]){ub.classList.add('hidden');upKey='';return;}
   const c=COSTS[level+1],ks=Object.keys(c),ready=ks.every(k=>inv[k]>=c[k]);
@@ -583,10 +602,13 @@ $('fs').addEventListener('click',e=>{e.stopPropagation();enterFs();});
 if(isMobile)document.addEventListener('pointerdown',enterFs,{capture:true,once:true});
 updateFsBtn();
 $('pause').addEventListener('click',()=>{SND.init();setPaused(state==='play');});
+$('zin').addEventListener('click',e=>{e.stopPropagation();setUserZoom(userZoom*1.2);});
+$('zout').addEventListener('click',e=>{e.stopPropagation();setUserZoom(userZoom/1.2);});
+cv.addEventListener('wheel',e=>{if(state!=='play')return;e.preventDefault();setUserZoom(userZoom*Math.exp(-e.deltaY*0.0012));},{passive:false});
 $('btn-resume').addEventListener('click',()=>setPaused(false));
 $('btn-restart').addEventListener('click',()=>{$('pause-ov').classList.add('hidden');clearSave();if(SND.ctx)SND.ctx.resume();newGame(null);});
-const MUTE_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
-const MUTE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+const MUTE_ON='<img src="icons/audioOn.png" alt="">';
+const MUTE_OFF='<img src="icons/audioOff.png" alt="">';
 function setMuteIcon(){$('mute').innerHTML=SND.muted?MUTE_OFF:MUTE_ON;}
 $('mute').addEventListener('click',()=>{SND.init();SND.setMuted(!SND.muted);setMuteIcon();try{localStorage.setItem('shanty_mute',SND.muted?'1':'0');}catch(_){}});
 try{SND.muted=localStorage.getItem('shanty_mute')==='1';}catch(_){}

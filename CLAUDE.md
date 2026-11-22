@@ -17,6 +17,8 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
   Water and Sky from three's examples). It reads the game's globals every frame and never changes game state.
 - `models/` — Kenney CC0 packs (GLB + `Textures/colormap.png` + `License.txt` per pack), trimmed to the models in use.
   Only download new packs with the user's OK.
+- `icons/` — Kenney Game Icons (CC0, white 2x PNGs) for the HUD buttons. The resource counter icons are rendered from 3D models by
+  `makeIcons()` in world3d.js and handed to `setHudIcons()` in index.html (also updates `ICONS` for the upgrade button).
 - `manifest.webmanifest` — web app manifest (`display: fullscreen`, portrait) for home-screen installs.
 - `.claude/launch.json` — static dev server (`python -m http.server 8765`) for previewing.
 - `README.md` — player-facing description and level table.
@@ -45,6 +47,7 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
   fall-overboard death from `fallTime`/`fallDest` (`dieT`).
 - **Systems in `update(dt)`:** health drain + heartbeat (`LOW`/`CRIT`), movement and rowing/motor, ruins collision, items
   (spawn/despawn ring around the boat), grapple (`G`), fishing (`FISH`), rescues (`survivorT`, `spawnSurvivor`), particles, gulls, fish schools.
+- **Zoom:** `ZOOMS[level]` (per level) × `userZoom` (player, 0.65–1.7, buttons/wheel/+/−, saved as `shanty_zoom`) × `CLOSER` in world3d.js.
 - **Rendering:** `render()` calls `R3D.render()` (world3d.js: camera follow + zoom, water, boat rebuilt from `LEVELS[level]` by
   `buildBoat()`, items/ruins/gulls/fish/particles synced to the game arrays each frame), then draws the 2D overlay on top.
 - **3D models:** `NEED` in world3d.js lists the GLBs to load; `fitModel(key,x,y,z)` clones one fitted to a size in metres;

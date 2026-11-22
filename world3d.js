@@ -15,7 +15,7 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const U=0.075;
-const CLOSER=1.35; // the 3D view sits a little closer than the old 2D one so the models read well on a phone
+const CLOSER=1.05; // overall framing: a little closer than the old 2D view; the player's zoom (userZoom) multiplies it
 const V3=THREE.Vector3;
 const mobile=matchMedia('(pointer:coarse)').matches;
 const ELEV=THREE.MathUtils.degToRad(40);                     // camera elevation above the sea
@@ -319,7 +319,7 @@ function render(){
   const now=performance.now(),dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
   const playing=state!=='menu';
   // camera: the same framing as before — boat in the lower middle, zoom from ZOOMS
-  const sc=baseScale()*zoom*CLOSER,hfov=2*Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*camera.aspect);
+  const sc=baseScale()*zoom*CLOSER*(typeof userZoom==='number'?userZoom:1),hfov=2*Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*camera.aspect);
   const widthM=W/sc*U,dist=widthM/(2*Math.tan(hfov/2));
   const fwd=0.19*H*U/(sc*Math.sin(ELEV));
   const look=toW(cam.x,cam.y).add(new V3(-fwd/Math.SQRT2,0,-fwd/Math.SQRT2));
@@ -419,6 +419,50 @@ function render(){
   renderer.render(scene,camera);
 }
 
+// ---------- HUD icons rendered from 3D models ----------
+function makeIcons(){
+  const S=96,r=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
+  r.setPixelRatio(1);r.setSize(S,S,false);r.toneMapping=THREE.ACESFilmicToneMapping;r.toneMappingExposure=1.0;
+  const sc=new THREE.Scene();sc.environment=scene.environment;
+  sc.add(new THREE.HemisphereLight(0xffffff,0x40484c,1.3));const dl=new THREE.DirectionalLight(0xfff4e0,2.4);dl.position.set(2,4,3);sc.add(dl);
+  const cam=new THREE.PerspectiveCamera(24,1,0.05,50);
+  const shot=(obj,dir=new V3(1,0.85,1.2))=>{sc.add(obj);obj.updateMatrixWorld(true);
+    const sph=new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere());
+    cam.position.copy(sph.center).add(dir.normalize().multiplyScalar(sph.radius/Math.sin(THREE.MathUtils.degToRad(12))));cam.lookAt(sph.center);
+    r.render(sc,cam);const url=r.domElement.toDataURL('image/png');sc.remove(obj);return url;};
+  const std=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:0.5},o));
+  // food: a tin can with a red label
+  const can=new THREE.Group();
+  can.add(new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.8,24),std(0xb9c0c6,{metalness:0.7,roughness:0.3})));
+  const lab=new THREE.Mesh(new THREE.CylinderGeometry(0.345,0.345,0.46,24,1,true),std(0xc8402f));can.add(lab);
+  const dot=new THREE.Mesh(new THREE.CircleGeometry(0.11,16),std(0xf2c14e));dot.position.set(0.2,0,0.28);dot.lookAt(0.6,0,0.84);can.add(dot);
+  for(const y of [-0.4,0.4]){const rim=new THREE.Mesh(new THREE.TorusGeometry(0.33,0.025,6,24),std(0xdfe4e8,{metalness:0.8,roughness:0.25}));rim.rotation.x=Math.PI/2;rim.position.y=y;can.add(rim);}
+  // water: a blue jug, half full
+  const jug=new THREE.Group();
+  jug.add(new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.34,0.62,20),std(0xd8f0fb,{roughness:0.15,transparent:true,opacity:0.6})));
+  const wat=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.32,0.42,20),std(0x2f8fe0,{roughness:0.2}));wat.position.y=-0.09;jug.add(wat);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.3,0.22,20),std(0xd8f0fb,{roughness:0.15,transparent:true,opacity:0.6}));neck.position.y=0.42;jug.add(neck);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.13,16),std(0x1f5fa8));cap.position.y=0.58;jug.add(cap);
+  // plastic: a crumpled clear bottle lying down with a red cap
+  const pb=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.24,0.8,12,4),std(0xa8dcee,{roughness:0.2,transparent:true,opacity:0.85}));
+  {const p=body.geometry.attributes.position;for(let i=0;i<p.count;i++){const y=p.getY(i);p.setX(i,p.getX(i)*(1+Math.sin(y*14)*0.12));}body.geometry.computeVertexNormals();}
+  pb.add(body);const pn=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.19,0.22,12),body.material);pn.position.y=0.5;pb.add(pn);
+  const pc=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.1,12),std(0xd23d2c));pc.position.y=0.65;pb.add(pc);pb.rotation.z=-0.45;
+  // parts: a steel gear with a bolt
+  const gear=new THREE.Group(),steel=std(0xaeb6be,{metalness:0.45,roughness:0.38});
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.16,28),steel);gear.add(disc);
+  for(let i=0;i<10;i++){const t=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.16,0.14),steel);const a=i/10*Math.PI*2;t.position.set(Math.cos(a)*0.47,0,Math.sin(a)*0.47);t.rotation.y=-a;gear.add(t);}
+  const hole=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.18,16),std(0x262b30));gear.add(hole);
+  const bolt=new THREE.Group();bolt.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.12,6),std(0xc9a24a,{metalness:0.8,roughness:0.3})));
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.5,10),std(0xc9a24a,{metalness:0.8,roughness:0.35}));sh.position.y=-0.3;bolt.add(sh);
+  bolt.position.set(0.3,0.3,0.25);bolt.rotation.set(0.5,0,-0.6);gear.add(bolt);gear.rotation.set(0.6,0,-0.5);
+  const wood=fitModel('survival/resource-planks',1,null,null);
+  const out={food:shot(can),water:shot(jug),bottles:shot(pb),misc:shot(gear),wood:shot(wood)};
+  r.dispose();r.forceContextLoss();
+  return out;
+}
+
 // screen projection helpers used by the 2D overlay and the game logic
 const _p=new V3();
 function project(x,y,z){_p.set(x*U,(z||0)*U,y*U).project(camera);if(_p.z>1)return [-9999,-9999];return [(_p.x+1)/2*W,(1-_p.y)/2*H];}
@@ -428,4 +472,5 @@ function unproject(sx,sy){_ray.setFromCamera(new THREE.Vector2(sx/W*2-1,-(sy/H)*
 
 await loadModels();
 fit();
+try{setHudIcons(makeIcons());}catch(e){console.warn('HUD icons',e);}
 window.R3D={render,project,unproject};

@@ -23,6 +23,8 @@ and drowned buildings. The HUD, mini map and floating text are drawn on a 2D lay
 
 Models in `models/` are from [Kenney](https://kenney.nl) (Pirate Kit, Survival Kit, City Kit Commercial, Mini Characters),
 licensed CC0 (public domain). Each pack's `License.txt` is kept alongside its models.
+The button icons in `icons/` are from Kenney's Game Icons (CC0). The resource counter icons are rendered at load time from the
+game's own 3D models.
 
 ## How it plays
 
@@ -36,6 +38,7 @@ licensed CC0 (public domain). Each pack's `License.txt` is kept alongside its mo
 - **Health** drains slowly. Tap the food or water counter to eat or drink. Below 30% the health bar flashes and a heartbeat
   starts; at 10% the whole screen flashes and the heartbeat gets faster and louder. At zero the whole crew faints,
   then tumbles overboard into the water with a dying sound.
+- **Zoom** with the magnifier buttons at the bottom left (or the mouse wheel / + and − keys). Your zoom is remembered.
 - **Pause** with the pause button (or P / Esc). The game also pauses when you switch away from the tab.
 - **Full screen:** on phones the game goes full screen on your first touch; the bottom-left button re-enters it.
   iPhone Safari doesn't support full screen for web pages, so on iPhone use Share → Add to Home Screen instead.
