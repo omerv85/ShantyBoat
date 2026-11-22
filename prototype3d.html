@@ -29,7 +29,7 @@
 </script>
 </head>
 <body>
-<div id="load">Loading 3D prototype…</div>
+<div id="load">Loading models…</div>
 <div id="modes"><button data-m="raft" class="on">Raft</button><button data-m="shack">Shack</button><button data-m="cat">Catamaran</button></div>
 <div id="hud"><div class="ctr"><b id="n-wood">0</b><span>wood</span></div><div class="ctr"><b id="n-plastic">0</b><span>plastic</span></div><div class="ctr"><b id="n-crate">0</b><span>crates</span></div></div>
 <div id="hint">Drag anywhere to row</div>
@@ -37,10 +37,13 @@
 <div id="joy"><div id="knob"></div></div>
 <script type="module">
 // Shanty Boat — three.js look-and-feel prototype.
-// Everything is low-poly geometry built in code (no downloaded assets). Water and sky use three.js's Water and Sky examples.
+// Models: Kenney's Pirate Kit, Survival Kit, City Kit (Commercial) and Mini Characters (CC0, kenney.nl) in models/.
+// Water and sky use three.js's Water and Sky examples; gulls, foam and smoke are built in code.
 import * as THREE from 'three';
 import {Water} from 'three/addons/objects/Water.js';
 import {Sky} from 'three/addons/objects/Sky.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const $=id=>document.getElementById(id);
 const rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[(Math.random()*a.length)|0];
@@ -103,103 +106,87 @@ water.rotation.x=-Math.PI/2;water.material.uniforms.size.value=5;scene.add(water
 // ---------- materials & helpers ----------
 const M={};
 const mat=(c,o={})=>M[c+JSON.stringify(o)]||(M[c+JSON.stringify(o)]=new THREE.MeshStandardMaterial(Object.assign({color:c,flatShading:true,roughness:0.88,metalness:0},o)));
-const WOODS=[0x8a6239,0x9c7046,0x7a5532,0xa47b4e,0x6f4b2c];
 function mesh(geo,m,{cast=true,recv=true}={}){const o=new THREE.Mesh(geo,m);o.castShadow=cast;o.receiveShadow=recv;return o;}
 function jitter(geo,amt){const p=geo.attributes.position;for(let i=0;i<p.count;i++)p.setXYZ(i,p.getX(i)+rand(-amt,amt),p.getY(i)+rand(-amt,amt),p.getZ(i)+rand(-amt,amt));geo.computeVertexNormals();return geo;}
-function log(len,r){const g=jitter(new THREE.CylinderGeometry(r,r*1.08,len,7,3),r*0.12);g.rotateZ(Math.PI/2);return mesh(g,mat(pick(WOODS)));}
-function plank(w,h,d,c){return mesh(jitter(new THREE.BoxGeometry(w,h,d),Math.min(w,h,d)*0.08),mat(c??pick(WOODS)));}
-function rope(r=0.2){const m=mesh(new THREE.TorusGeometry(r,0.035,4,10),mat(0xcbb47e));return m;}
 
-// ---------- people ----------
-const STYLES=[{shirt:0x8b7a57,pants:0x4e4232,hair:0x3a2a1c,band:0xa8392b,skin:0xcf9c74},
-  {shirt:0x5b6f86,pants:0x3b3a40,hair:0xb5673a,band:0x3a8f8a,skin:0xe0b08a},
-  {shirt:0x6b6a3a,pants:0x3e3a2e,hair:0x9a9a96,band:0xd9a92a,skin:0xc48d68}];
-function person(st){
-  const g=new THREE.Group();
-  const legs=new THREE.Group();g.add(legs);
-  for(const s of [-1,1]){const l=mesh(new THREE.BoxGeometry(0.17,0.5,0.17),mat(st.pants));l.position.set(0.25,0.18,s*0.13);l.rotation.z=-1.2;legs.add(l);
-    const sh=mesh(new THREE.BoxGeometry(0.16,0.5,0.17),mat(st.pants));sh.position.set(0.5,-0.04,s*0.13);legs.add(sh);
-    const f=mesh(new THREE.BoxGeometry(0.24,0.08,0.13),mat(0x2e241b));f.position.set(0.56,-0.28,s*0.13);legs.add(f);}
-  const torso=mesh(jitter(new THREE.CylinderGeometry(0.2,0.25,0.62,7),0.02),mat(st.shirt));torso.position.y=0.55;g.add(torso);
-  const belt=mesh(new THREE.CylinderGeometry(0.255,0.255,0.06,7),mat(0x5a3c22));belt.position.y=0.3;g.add(belt);
-  const head=new THREE.Group();head.position.y=1.05;g.add(head);
-  head.add(mesh(new THREE.IcosahedronGeometry(0.19,1),mat(st.skin)));
-  const hair=mesh(new THREE.SphereGeometry(0.2,8,6,0,Math.PI*2,0,Math.PI*0.55),mat(st.hair));hair.rotation.z=0.25;hair.position.x=-0.02;head.add(hair);
-  const band=mesh(new THREE.TorusGeometry(0.19,0.03,4,12),mat(st.band));band.rotation.x=Math.PI/2;band.position.y=0.06;head.add(band);
-  const nose=mesh(new THREE.BoxGeometry(0.06,0.06,0.05),mat(st.skin));nose.position.set(0.19,-0.01,0);head.add(nose);
-  for(const s of [-1,1]){const e=mesh(new THREE.BoxGeometry(0.02,0.035,0.035),mat(0x1a1410),{cast:false});e.position.set(0.18,0.04,s*0.075);head.add(e);}
-  const arms=[];
-  for(const s of [-1,1]){const sh=new THREE.Group();sh.position.set(0,0.8,s*0.27);g.add(sh);
-    const up=mesh(new THREE.BoxGeometry(0.13,0.34,0.13),mat(st.shirt));up.position.y=-0.15;sh.add(up);
-    const el=new THREE.Group();el.position.y=-0.32;sh.add(el);
-    const fo=mesh(new THREE.BoxGeometry(0.11,0.3,0.11),mat(st.skin));fo.position.y=-0.14;el.add(fo);
-    arms.push({sh,el});}
-  g.userData={arms,head,torso};return g;
+// ---------- model library ----------
+const NEED={
+  pirate:['platform','platform-planks','crate','crate-bottles','barrel','bottle','boat-row-large','tool-paddle'],
+  survival:['tent-canvas','structure','structure-roof','metal-panel-screws','box','resource-planks','bucket','bottle'],
+  city:['building-a','building-b','building-c','building-d','building-e','building-g','building-h','building-j','building-k','building-m','building-skyscraper-a','building-skyscraper-b','building-skyscraper-c'],
+  chars:['character-male-b','character-female-b','character-male-e'],
+};
+const LIB={};
+// Kenney's palette is bright and saturated; mute it (partly desaturate, slightly darken) to fit the drowned world.
+const WEATHERED=new Set();
+function weather(m,pack){
+  if(WEATHERED.has(m))return;WEATHERED.add(m);
+  const amt=pack==='chars'?0.12:0.22,tint=pack==='chars'?'0.97,0.97,0.95':'0.8,0.86,0.84';
+  m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',
+    `#include <map_fragment>
+     diffuseColor.rgb=mix(diffuseColor.rgb,vec3(dot(diffuseColor.rgb,vec3(0.299,0.587,0.114))),${amt.toFixed(2)})*vec3(${tint});`);};
+  m.needsUpdate=true;
+}
+async function loadModels(){
+  const L=new GLTFLoader(),jobs=[];let done=0,total=0;
+  for(const [pack,names] of Object.entries(NEED))for(const n of names){total++;
+    jobs.push(L.loadAsync(`models/${pack}/${n}.glb`).then(g=>{
+      g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;weather(o.material,pack);}});
+      LIB[pack+'/'+n]={scene:g.scene,anims:g.animations};$('load').textContent=`Loading models… ${++done}/${total}`;}));}
+  await Promise.all(jobs);
+}
+// A copy of a model scaled so its height (or 'long' = longest side) equals `size`, resting on y=0 and centred on x/z.
+function model(key,size,by='y'){
+  const src=LIB[key];const o=src.anims.length?SkeletonUtils.clone(src.scene):src.scene.clone();
+  const b=new THREE.Box3().setFromObject(o),sz=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());
+  const k=size/(by==='y'?sz.y:by==='x'?sz.x:by==='z'?sz.z:Math.max(sz.x,sz.z));
+  o.scale.multiplyScalar(k);o.position.set(-c.x*k,-b.min.y*k,-c.z*k);
+  const g=new THREE.Group();g.add(o);g.userData.size=sz.clone().multiplyScalar(k);g.userData.inner=o;g.userData.anims=src.anims;return g;
+}
+const mixers=[];
+function character(key,anim,height=1.35){
+  const g=model('chars/'+key,height);g.userData.inner.rotation.y=Math.PI/2; // the characters face +z; ours face +x
+  const mx=new THREE.AnimationMixer(g.userData.inner);const clip=THREE.AnimationClip.findByName(g.userData.anims,anim);
+  if(clip){const a=mx.clipAction(clip);a.play();a.time=Math.random()*clip.duration;}
+  mixers.push(mx);g.userData.mixer=mx;return g;
 }
 
 // ---------- boats ----------
-function oar(){const g=new THREE.Group();const shaft=mesh(new THREE.CylinderGeometry(0.04,0.04,3.1,6),mat(0x6e4a29));shaft.rotation.z=Math.PI/2;shaft.position.x=0.6;g.add(shaft);
-  const blade=mesh(new THREE.BoxGeometry(0.75,0.04,0.26),mat(0x7a5532));blade.position.x=2.0;g.add(blade);return g;}
-function raftDeck(w,d){
-  const g=new THREE.Group();const n=Math.round(d/0.42);
-  for(let i=0;i<n;i++){const l=log(w+rand(-0.2,0.3),0.2);l.position.set(rand(-0.1,0.1),0,-d/2+0.21+i*(d-0.42)/(n-1));g.add(l);}
-  for(const x of [-w/2+0.35,w/2-0.35]){const b=plank(0.22,0.12,d+0.25);b.position.set(x,0.22,0);g.add(b);
-    for(let i=0;i<n;i+=2){const r=rope(0.22);r.rotation.y=Math.PI/2;r.position.set(x,0.05,-d/2+0.21+i*(d-0.42)/(n-1));g.add(r);}}
-  return g;
-}
-function bottles(g,w,d){for(let i=0;i<10;i++){const b=mesh(new THREE.CylinderGeometry(0.09,0.09,0.36,7),mat(pick([0x8fd0e6,0x6fb3d0,0xbde6f2]),{roughness:0.3,transparent:true,opacity:0.85}));
-  const side=i<5?-1:1;b.rotation.x=Math.PI/2;b.position.set(-w/2+0.4+(i%5)*(w-0.8)/4,-0.12,side*(d/2+0.08));g.add(b);}}
-function tent(){const g=new THREE.Group();const tarp=mat(0x6d7f5a,{side:THREE.DoubleSide});
-  for(const s of [-1,1]){const p=mesh(new THREE.BoxGeometry(1.7,0.04,1.15),tarp);p.position.set(0,0.62,s*0.4);p.rotation.x=s*0.85;g.add(p);}
-  const patch=mesh(new THREE.BoxGeometry(0.4,0.05,0.35),mat(0x8b5a3a));patch.position.set(0.3,0.68,0.42);patch.rotation.x=0.85;g.add(patch);
-  for(const x of [-0.82,0.82]){const pole=mesh(new THREE.CylinderGeometry(0.04,0.04,1.15,5),mat(0x5a3c22));pole.position.set(x,0.6,0);g.add(pole);}
-  return g;}
-function shack(){
-  const g=new THREE.Group();const W=2.3,D=1.9,H=1.7;
-  for(let y=0;y<H;y+=0.24){for(const s of [-1,1]){const p=plank(W,0.22,0.08);p.position.set(0,y+0.12,s*D/2);g.add(p);
-      const q=plank(0.08,0.22,D);q.position.set(s*W/2,y+0.12,0);if(!(s>0&&y<1.1&&y>0))g.add(q);}}
-  const door=mesh(new THREE.BoxGeometry(0.06,1.15,0.7),mat(0x3a2a1c));door.position.set(W/2,0.6,0.2);g.add(door);
-  const win=mesh(new THREE.BoxGeometry(0.5,0.4,0.06),mat(0xe6c36a,{emissive:0x7a5a20,emissiveIntensity:0.5}));win.position.set(-0.4,1.05,D/2+0.02);g.add(win);
-  const roof=new THREE.Group();roof.position.y=H+0.05;g.add(roof);
-  for(let i=0;i<5;i++){const sheet=mesh(new THREE.BoxGeometry(W+0.5,0.05,0.48),mat(pick([0x8a8f8c,0x7d6a55,0x9a6a48]),{metalness:0.4,roughness:0.6}));
-    sheet.position.set(0,0.12-i*0.02,-D/2-0.15+i*0.46);sheet.rotation.x=0.12;roof.add(sheet);}
-  const pipe=mesh(new THREE.CylinderGeometry(0.08,0.08,0.9,8),mat(0x3b3b3b,{metalness:0.6,roughness:0.5}));pipe.position.set(-0.7,H+0.5,-0.4);g.add(pipe);
-  g.userData.chimney=new THREE.Vector3(-0.7,H+1,-0.4);
-  const barrel=mesh(new THREE.CylinderGeometry(0.28,0.28,0.75,10),mat(0x2f5f8a,{roughness:0.6,metalness:0.2}));barrel.position.set(-W/2-0.5,0.38,-0.6);g.add(barrel);
-  return g;
-}
-function pontoon(len){const g=new THREE.Group();
-  const body=mesh(new THREE.CylinderGeometry(0.42,0.42,len,10),mat(0xc9c2b2,{roughness:0.6}));body.rotation.z=Math.PI/2;g.add(body);
-  for(const s of [-1,1]){const cap=mesh(new THREE.ConeGeometry(0.42,0.9,10),mat(0xc9c2b2,{roughness:0.6}));cap.rotation.z=-s*Math.PI/2;cap.position.x=s*(len/2+0.45);g.add(cap);}
-  const stripe=mesh(new THREE.CylinderGeometry(0.43,0.43,0.25,10),mat(0xb5473a));stripe.rotation.z=Math.PI/2;stripe.position.x=len*0.3;g.add(stripe);
-  return g;}
-
-const boat={x:0,z:0,a:Math.atan2(1,-1),v:0,turn:0,group:null,rower:null,oars:[],chimney:null,mode:'raft',radius:2.2};
+function oar(){const g=new THREE.Group();const p=model('pirate/tool-paddle',2.8);p.rotation.z=Math.PI/2;p.position.x=2.4;g.add(p);return g;} // handle at the rower, blade out over the water
+const boat={x:0,z:0,a:Math.PI*0.88,v:0,group:null,rower:null,oars:[],chimney:null,mode:'raft',radius:2.2};
 function buildBoat(mode){
-  if(boat.group)scene.remove(boat.group);
-  const g=new THREE.Group();boat.mode=mode;boat.oars=[];boat.chimney=null;
-  const deckY=mode==='cat'?0.75:0.12;
-  let w=3.2,d=3.0;
-  if(mode==='cat'){w=5.6;d=3.6;
-    for(const s of [-1,1]){const p=pontoon(5.2);p.position.set(0,0.15,s*1.7);g.add(p);}
-    const deck=new THREE.Group();deck.position.y=deckY;g.add(deck);
-    for(let i=0;i<9;i++){const p=plank(0.36,0.1,4.1);p.position.set(-2.2+i*0.42,0,0);deck.add(p);}
-    for(const s of [-1,1]){const b=plank(4.4,0.14,0.18);b.position.set(-0.4,-0.08,s*1.7);deck.add(b);}
+  if(boat.group){scene.remove(boat.group);for(const c of [boat.rower,boat.crew2])if(c)mixers.splice(mixers.indexOf(c.userData.mixer),1);}
+  const g=new THREE.Group();boat.mode=mode;boat.oars=[];boat.chimney=null;boat.crew2=null;
+  let deckTop=0.25,rx=-1.1,oarZ=1.55;
+  if(mode==='cat'){
+    // two old rowboats lashed together under a plank platform
+    for(const s of [-1,1]){const b=model('pirate/boat-row-large',6.2,'long');if(b.userData.size.z>b.userData.size.x)b.rotation.y=Math.PI/2;b.position.set(0,-0.35,s*2.05);g.add(b);}
+    const deck=model('pirate/platform',4.6,'long');deck.position.y=0.3;g.add(deck);deckTop=0.3+deck.userData.size.y;rx=-2.0;oarZ=2.6;
   } else {
-    const deck=raftDeck(w,d);g.add(deck);bottles(g,w,d);
-    if(mode==='shack'){const side=raftDeck(1.8,d);side.position.set(-w/2-0.85,0,0);g.add(side);}
+    const deck=model('pirate/platform',3.3,'long');deck.position.y=-0.12;g.add(deck);deckTop=-0.12+deck.userData.size.y;
+    for(const [x,z] of [[-1.2,-1.2],[1.2,-1.2],[-1.2,1.2],[1.2,1.2]]){const b=model('pirate/barrel',0.9);b.position.set(x,-0.75,z);g.add(b);}
+    if(mode==='shack'){const side=model('pirate/platform',2.2,'long');side.position.set(-2.7,-0.12,0);g.add(side);
+      for(const z of [-0.8,0.8]){const b=model('pirate/barrel',0.8);b.position.set(-2.7,-0.7,z);g.add(b);}rx=-2.7;oarZ=1.3;}
   }
-  const top=deckY+0.25;
-  if(mode==='raft'){const t=tent();t.position.set(0.6,top,0);g.add(t);}
-  else{const s=shack();s.position.set(mode==='cat'?0.5:0.2,top,0);g.add(s);boat.chimney=s.userData.chimney.clone().add(s.position);
-    const crate=mesh(new THREE.BoxGeometry(0.6,0.5,0.6),mat(0x9a7a4a));crate.position.set(mode==='cat'?-1.4:-1.6,top+0.25,1.0);g.add(crate);}
-  // rower at the stern with two oars
-  const rx=mode==='cat'?-2.0:(mode==='shack'?-1.2:-1.0);
-  const r=person(STYLES[0]);r.position.set(rx,top+0.2,0);r.rotation.y=Math.PI;g.add(r);boat.rower=r;
-  const seat=plank(0.5,0.25,0.9);seat.position.set(rx-0.15,top,0);g.add(seat);
-  for(const s of [-1,1]){const o=oar();o.position.set(rx-0.3,top+0.55,s*(mode==='cat'?2.1:1.55));o.userData.s=s;g.add(o);boat.oars.push(o);}
-  if(mode!=='raft'){const p2=person(STYLES[1]);p2.position.set(mode==='cat'?2.6:2.0,top+0.2,-0.6);g.add(p2);boat.crew2=p2;}else boat.crew2=null;
-  boat.radius=mode==='cat'?3.4:mode==='shack'?2.8:2.2;
+  if(mode==='raft'){const t=model('survival/tent-canvas',1.7);t.position.set(0.6,deckTop,0);t.rotation.y=Math.PI/2;g.add(t);
+    const bk=model('survival/bucket',0.4);bk.position.set(1.2,deckTop,1.1);g.add(bk);}
+  else{
+    const sx=mode==='cat'?0.6:0.3,sh=new THREE.Group();sh.position.set(sx,deckTop,0);g.add(sh);
+    const fr=model('survival/structure',2.3);sh.add(fr);const fw=fr.userData.size;
+    const rf=model('survival/structure-roof',fw.x*1.15,'x');rf.position.y=fw.y*0.92;sh.add(rf);
+    // corrugated metal sheets for walls on three sides
+    for(const [x,z,ry] of [[0,-fw.z/2,0],[0,fw.z/2,0],[-fw.x/2,0,Math.PI/2]]){const w=model('survival/metal-panel-screws',fw.y*0.85);
+      const k=(ry?fw.z:fw.x)/Math.max(w.userData.size.x,0.01);w.scale.x=k*0.95;w.position.set(x,0,z);w.rotation.y=ry;sh.add(w);}
+    const pipe=mesh(new THREE.CylinderGeometry(0.08,0.08,1.1,8),mat(0x3b3b3b,{metalness:0.6,roughness:0.5}));pipe.position.set(-0.5,fw.y+0.4,-0.5);sh.add(pipe);
+    boat.chimney=new THREE.Vector3(sx-0.5,deckTop+fw.y+1.0,-0.5);
+    const cr=model('pirate/crate-bottles',0.7);cr.position.set(mode==='cat'?-1.3:1.4,deckTop,1.1);g.add(cr);
+    const c2=character('character-female-b','idle');c2.position.set(mode==='cat'?2.4:1.6,deckTop,-1.0);g.add(c2);boat.crew2=c2;
+  }
+  // rower on a crate at the stern with two oars
+  const seat=model('pirate/crate',0.45);seat.position.set(rx-0.1,deckTop,0);g.add(seat);
+  const r=character('character-male-b','sit',1.35);r.position.set(rx,deckTop+0.25,0);r.rotation.y=Math.PI;g.add(r);boat.rower=r;
+  for(const s of [-1,1]){const o=oar();o.position.set(rx-0.1,deckTop+0.6,s*oarZ*0.5);o.userData.s=s;g.add(o);boat.oars.push(o);}
+  boat.radius=mode==='cat'?3.4:mode==='shack'?3.2:2.2;
   scene.add(g);boat.group=g;
 }
 
@@ -207,11 +194,9 @@ function buildBoat(mode){
 const items=[];
 function makeItem(kind){
   let o;
-  if(kind==='wood'){o=plank(rand(1.6,2.4),0.12,0.32);o.userData.r=1.1;}
-  else if(kind==='plastic'){o=new THREE.Group();const b=mesh(new THREE.CylinderGeometry(0.12,0.12,0.5,8),mat(pick([0x8fd0e6,0xbde6f2,0x9fd88a]),{roughness:0.25,transparent:true,opacity:0.85}));
-    b.rotation.z=Math.PI/2;o.add(b);const cap=mesh(new THREE.CylinderGeometry(0.06,0.06,0.08,6),mat(pick([0x2f78c4,0xd9442b,0xf2f2f2])));cap.rotation.z=Math.PI/2;cap.position.x=0.29;o.add(cap);o.userData.r=0.6;}
-  else {o=new THREE.Group();const c=pick([0x4f7fa8,0xd07a2a,0x5b8a4a]);const b=mesh(new THREE.BoxGeometry(0.8,0.55,0.6),mat(c));o.add(b);
-    for(const y of [-0.2,0.2]){const rim=mesh(new THREE.BoxGeometry(0.84,0.08,0.64),mat(new THREE.Color(c).multiplyScalar(0.7).getHex()));rim.position.y=y;o.add(rim);}o.userData.r=0.9;}
+  if(kind==='wood'){o=Math.random()<0.5?model('survival/resource-planks',1.8,'long'):model('pirate/platform-planks',2.0,'long');o.userData.r=1.1;}
+  else if(kind==='plastic'){o=model(pick(['pirate/bottle','survival/bottle']),0.55);o.userData.inner.rotation.z=Math.PI/2;o.userData.inner.position.y+=0.1;o.userData.r=0.6;}
+  else {o=model(pick(['pirate/crate','survival/box','pirate/crate-bottles','pirate/barrel']),0.75);o.userData.r=0.9;}
   o.userData.kind=kind;o.userData.ph=Math.random()*6;return o;
 }
 function spawnItem(near){
@@ -222,33 +207,21 @@ function spawnItem(near){
 }
 
 // ---------- drowned ruins ----------
-function facadeTexture(){
-  const c=document.createElement('canvas');c.width=128;c.height=128;const g=c.getContext('2d');
-  g.fillStyle='#8d8f88';g.fillRect(0,0,128,128);
-  for(let i=0;i<500;i++){g.fillStyle=`rgba(${Math.random()<0.5?40:200},${Math.random()<0.5?40:190},${Math.random()<0.5?30:170},.05)`;g.fillRect(Math.random()*128,Math.random()*128,Math.random()*12,Math.random()*12);}
-  for(let x=0;x<4;x++)for(let y=0;y<4;y++){const broken=Math.random()<0.3;g.fillStyle=broken?'#14191b':'#2a3438';g.fillRect(8+x*32,8+y*32,18,22);
-    if(!broken){g.fillStyle='rgba(160,190,200,.35)';g.fillRect(9+x*32,9+y*32,7,9);}
-    g.fillStyle='rgba(60,40,20,.25)';g.fillRect(8+x*32,30+y*32,18,8);}
-  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t;
-}
-const FACADE=facadeTexture();
 const ruins=new Map(),CELL=46;
 function hash(x,y){let h=Math.imul(x|0,374761393)+Math.imul(y|0,668265263);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967296;}
-function ruinSpec(cx,cz){const h=hash(cx,cz);if(h>0.42||(Math.abs(cx)<1&&Math.abs(cz)<1))return null;
-  return {x:cx*CELL+(hash(cz,cx)-0.5)*20,z:cz*CELL+(hash(cx+7,cz-3)-0.5)*20,w:8+hash(cx*3,cz)*10,d:8+hash(cx,cz*3)*10,h:4+hash(cx+1,cz+1)*22,rot:(hash(cx-5,cz+2)-0.5)*0.6};}
+const BUILDINGS=NEED.city;
+function ruinSpec(cx,cz){const h=hash(cx,cz);if(h>0.45||(Math.abs(cx)<1&&Math.abs(cz)<1))return null;
+  return {x:cx*CELL+(hash(cz,cx)-0.5)*16,z:cz*CELL+(hash(cx+7,cz-3)-0.5)*16,key:BUILDINGS[(hash(cx*5,cz*3)*BUILDINGS.length)|0],
+    span:11+hash(cx*3,cz)*7,sink:0.2+hash(cx+1,cz+1)*0.3,rot:(hash(cx-5,cz+2)-0.5)*0.5};}
+const GRIME=new Map();
+function grimy(m){ // weathered copy of a material: darker, a little green-brown
+  if(!GRIME.has(m)){const c=m.clone();c.color=c.color.clone().multiplyScalar(0.6).lerp(new THREE.Color(0x5e5a44),0.32);c.roughness=1;GRIME.set(m,c);}return GRIME.get(m);}
 function buildRuin(sp){
   const g=new THREE.Group();g.position.set(sp.x,0,sp.z);g.rotation.y=sp.rot;
-  const tint=new THREE.Color().setHSL(0.08+hash(sp.x|0,sp.z|0)*0.08,0.12,0.5+hash(sp.z|0,sp.x|0)*0.15);
-  const tex=FACADE.clone();tex.needsUpdate=true;tex.repeat.set(sp.w/6,(sp.h+6)/6);
-  const body=mesh(new THREE.BoxGeometry(sp.w,sp.h+6,sp.d),new THREE.MeshStandardMaterial({map:tex,color:tint,roughness:0.95}));body.position.y=sp.h/2-3;g.add(body);
-  const slime=mesh(new THREE.BoxGeometry(sp.w+0.06,0.9,sp.d+0.06),mat(0x3b4a36,{roughness:1}),{cast:false});slime.position.y=0.2;g.add(slime);
-  const parapet=mesh(new THREE.BoxGeometry(sp.w+0.3,0.4,sp.d+0.3),mat(0x6a6a64));parapet.position.y=sp.h+0.2;g.add(parapet);
-  // broken corner and rubble on the roof
-  const cut=mesh(jitter(new THREE.BoxGeometry(sp.w*0.4,1.6,sp.d*0.4),0.3),mat(0x55554f));cut.position.set(sp.w*0.3,sp.h+0.5,-sp.d*0.3);g.add(cut);
-  for(let i=0;i<5;i++){const r=mesh(jitter(new THREE.BoxGeometry(rand(0.4,1.2),rand(0.3,0.8),rand(0.4,1.2)),0.12),mat(0x6d6a62));r.position.set(rand(-sp.w/3,sp.w/3),sp.h+0.6,rand(-sp.d/3,sp.d/3));r.rotation.set(rand(0,1),rand(0,3),rand(0,1));g.add(r);}
-  if(hash(sp.x|0,7)>0.5){const ant=mesh(new THREE.CylinderGeometry(0.06,0.08,5,5),mat(0x3b3b3b,{metalness:0.5}));ant.position.set(-sp.w/4,sp.h+2.8,sp.d/4);ant.rotation.z=0.15;g.add(ant);}
-  if(hash(7,sp.z|0)>0.55){const tank=mesh(new THREE.CylinderGeometry(1.1,1.1,1.6,10),mat(0x7d5a3c));tank.position.set(-sp.w/4,sp.h+1.6,-sp.d/4);g.add(tank);
-    for(const s of [[-0.7,-0.7],[0.7,-0.7],[-0.7,0.7],[0.7,0.7]]){const l=mesh(new THREE.CylinderGeometry(0.06,0.06,1,4),mat(0x3b3b3b));l.position.set(-sp.w/4+s[0],sp.h+0.5,-sp.d/4+s[1]);g.add(l);}}
+  const b=model('city/'+sp.key,sp.span,'long');b.userData.inner.traverse(o=>{if(o.isMesh)o.material=grimy(o.material);});
+  const h=b.userData.size.y;b.position.y=-h*sp.sink;g.add(b);
+  sp.w=b.userData.size.x;sp.d=b.userData.size.z;
+  const slime=mesh(new THREE.BoxGeometry(sp.w+0.08,0.8,sp.d+0.08),mat(0x34412f,{roughness:1}));slime.castShadow=false;slime.position.y=0.15;g.add(slime);
   scene.add(g);return g;
 }
 function updateRuins(){
@@ -303,6 +276,7 @@ for(const b of document.querySelectorAll('#modes button'))b.addEventListener('cl
   document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x===b));buildBoat(b.dataset.m);});
 
 // ---------- loop ----------
+await loadModels();
 buildBoat('raft');updateRuins();for(let i=0;i<34;i++)spawnItem(true);
 const clock=new THREE.Clock();let T=0,rowPh=0,foamT=0,smokeT=0;
 const camOff=new THREE.Vector3(1,1.18,1).normalize();
@@ -320,10 +294,8 @@ function frame(){
   rowPh+=dt*(1.2+boat.v*0.9)*(jm>0.1||boat.v>0.4?1:0.2);
   const sw=Math.sin(rowPh),lift=Math.max(0,Math.cos(rowPh));
   for(const o of boat.oars){o.rotation.y=o.userData.s*(1.25+sw*0.45);o.rotation.x=-o.userData.s*(0.28-lift*0.15);}
-  const R=boat.rower.userData;R.torso.rotation.z=-sw*0.15;
-  for(const {sh,el} of R.arms){sh.rotation.z=-1.0-sw*0.45;el.rotation.z=-0.6+sw*0.3;}
-  R.head.rotation.y=Math.sin(T*0.4)*0.3;
-  if(boat.crew2){const C=boat.crew2.userData;C.head.rotation.y=Math.sin(T*0.6+1)*0.6;C.arms[0].sh.rotation.z=-0.3+Math.sin(T*1.5)*0.1;}
+  boat.rower.rotation.z=sw*0.08; // lean into each stroke
+  for(const m of mixers)m.update(dt);
   // wake
   foamT-=dt;if(boat.v>0.8&&foamT<=0){foamT=0.07;const c=Math.cos(boat.a),s=Math.sin(boat.a),back=-boat.radius*0.9;
     for(const side of [-1,1]){const lz=side*boat.radius*0.6;addFoam(boat.x+c*back+s*lz+rand(-0.2,0.2),boat.z-s*back+c*lz+rand(-0.2,0.2),rand(0.5,0.9));}}
@@ -347,7 +319,7 @@ function frame(){
     gl.rotation.y=-u.a-(u.sp>0?0:Math.PI);const f=Math.sin(T*7+u.ph)*0.5;gl.userData.wings[0].rotation.x=f;gl.userData.wings[1].rotation.x=-f;}
   if(((T*10)|0)%10===0)updateRuins();
   // camera: fixed isometric-style angle, boat placed in the lower middle of the screen
-  const dist=boat.mode==='cat'?42:boat.mode==='shack'?36:30;
+  const dist=boat.mode==='cat'?36:boat.mode==='shack'?30:24;
   const look=new THREE.Vector3(boat.x-3.5,0,boat.z-3.5);
   camera.position.copy(look).addScaledVector(camOff,dist);camera.lookAt(look);
   sunLight.position.set(boat.x+sun.x*60,sun.y*60,boat.z+sun.z*60);sunLight.target.position.set(boat.x,0,boat.z);

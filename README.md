@@ -18,9 +18,12 @@ Sound starts after the first tap (browsers require a user gesture).
 
 ## 3D prototype
 
-`prototype3d.html` is a look-and-feel test of a three.js version: low-poly models built in code, reflective water, real
-shadows, a camera that follows the boat, rowing, grappling and drowned buildings. Switch between raft, shack and catamaran
-with the buttons at the top.
+`prototype3d.html` is a look-and-feel test of a three.js version: low-poly models, reflective water, real shadows, a camera
+that follows the boat, rowing, grappling and drowned buildings. Switch between raft, shack and catamaran with the buttons at
+the top.
+
+Models in `models/` are from [Kenney](https://kenney.nl) (Pirate Kit, Survival Kit, City Kit Commercial, Mini Characters),
+licensed CC0 (public domain). Each pack's `License.txt` is kept alongside its models.
 
 ## How it plays
 
