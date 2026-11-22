@@ -24,7 +24,7 @@ window.JOYK=1/Math.sin(ELEV);                                 // joystick: scree
 window.MAPY=0.7071*Math.sin(ELEV);                            // mini map: same squash as the screen
 
 // ---------- renderer, scene, camera ----------
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:true,stencil:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.75:2));
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.5;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -64,6 +64,18 @@ function waterNormals(N=256){ // tileable layered value noise -> normal map
 const water=new Water(new THREE.PlaneGeometry(700,700),{textureWidth:mobile?256:512,textureHeight:mobile?256:512,waterNormals:waterNormals(),
   sunDirection:sun.clone().normalize(),sunColor:0xfff0d2,waterColor:0x0b3a44,distortionScale:2.2,fog:true});
 water.rotation.x=-Math.PI/2;water.material.uniforms.size.value=5;scene.add(water);
+// Hulls sit partly below the waterline. Each one gets an invisible mask at the waterline (drawn first, writing 1 to the
+// stencil buffer); the water skips stencilled pixels, so you see the inside of the boat instead of sea water.
+Object.assign(water.material,{stencilWrite:true,stencilRef:1,stencilFunc:THREE.NotEqualStencilFunc});
+const MASK_MAT=new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false,stencilWrite:true,stencilRef:1,
+  stencilFunc:THREE.AlwaysStencilFunc,stencilZPass:THREE.ReplaceStencilOp});
+function waterMask(len,wid){ // rounded-rectangle (superellipse) footprint that stays inside the hull walls
+  const sh=new THREE.Shape(),n=48,e=2/3.2;
+  for(let i=0;i<=n;i++){const t=i/n*Math.PI*2,c=Math.cos(t),s=Math.sin(t);
+    const x=Math.sign(c)*Math.pow(Math.abs(c),e)*len/2,z=Math.sign(s)*Math.pow(Math.abs(s),e)*wid/2;i?sh.lineTo(x,z):sh.moveTo(x,z);}
+  const g=new THREE.ShapeGeometry(sh);g.rotateX(Math.PI/2);
+  const m=new THREE.Mesh(g,MASK_MAT);m.renderOrder=-1;m.position.y=0.01;return m;
+}
 
 // ---------- helpers ----------
 const MATS=new Map();
@@ -172,11 +184,13 @@ function buildBoat(){
   // catamaran pontoons and cross planks
   if(L.cats)for(const s of [1,-1]){const b=fitModel('pirate/boat-row-small',null,null,null);const sz=b.userData.size,long=sz.x>=sz.z?'x':'z';
     const f=fitModel('pirate/boat-row-small',long==='x'?104*U:24*U,0.9,long==='x'?24*U:104*U);if(long==='z')f.rotation.y=Math.PI/2;
-    f.position.set(12*U,-0.45,s*64*U);boatRoot.add(f);for(const px of [-14,44])plank(px,s*42,7,44);}
+    f.position.set(12*U,-0.45,s*64*U);boatRoot.add(f);
+    const fm=waterMask(104*U*0.84,24*U*0.72);fm.position.set(12*U,0.01,s*64*U);boatRoot.add(fm);for(const px of [-14,44])plank(px,s*42,7,44);}
   // rowboat hull
   if(L.hull){const b=fitModel('pirate/boat-row-large',null,null,null),sz=b.userData.size,long=sz.x>=sz.z?'x':'z';
     const h=fitModel('pirate/boat-row-large',long==='x'?121*U:54*U,1.15,long==='x'?54*U:121*U);if(long==='z')h.rotation.y=Math.PI/2;
     h.position.set(29.5*U,-0.55,0);boatRoot.add(h);deckTop=0.05;
+    const hm=waterMask(121*U*0.86,54*U*0.78);hm.position.set(29.5*U,0.01,0);boatRoot.add(hm);
     if(L.bottles)edgeBottles(-31,90,-27,27,-0.25);}
   const dt=deckTop;
   // tent or shack
