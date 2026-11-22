@@ -95,6 +95,11 @@
   #intro{position:fixed;inset:0;z-index:30;background:#000}
   #intro.hidden{display:none}
   #introcv{display:block;width:100%;height:100%}
+  #tapsound{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 18px);transform:translateX(-50%);pointer-events:none;
+    background:rgba(0,0,0,.35);color:#f3e2bd;border-radius:20px;padding:6px 14px;font-size:14px;font-weight:600;opacity:.85;
+    animation:tapPulse 1.6s ease-in-out infinite}
+  #tapsound.hidden{display:none}
+  @keyframes tapPulse{50%{opacity:.45}}
   #skip{position:absolute;right:calc(env(safe-area-inset-right) + 16px);bottom:calc(env(safe-area-inset-bottom) + 18px);
     background:rgba(0,0,0,.35);color:#f3e2bd;border:1px solid rgba(243,226,189,.35);border-radius:20px;padding:7px 16px;
     font-size:15px;font-weight:600;cursor:pointer}
@@ -138,7 +143,7 @@
   <button class="linkbtn" id="btn-intro">Watch the intro</button>
 </div>
 
-<div id="intro" class="hidden"><canvas id="introcv"></canvas><button id="skip">Skip ›</button></div>
+<div id="intro" class="hidden"><canvas id="introcv"></canvas><div id="tapsound" class="hidden">🔊 Tap for sound</div><button id="skip">Skip ›</button></div>
 
 <div id="pause-ov" class="overlay hidden">
   <h2>Paused</h2>
@@ -1899,40 +1904,42 @@ function introCaption(g,t){
   }
 }
 
-function introAudio(){
+function introAudio(off){
   if(!SND.ctx)return;
-  const c=SND.ctx,t0=c.currentTime+0.05;
+  off=off||0;const c=SND.ctx,now=c.currentTime+0.05,t0=now-off,fut=t=>t>=now; // one-shot sounds already in the past are skipped
   const bus=INTRO.bus=c.createGain();bus.gain.value=1;bus.connect(SND.master);
-  if(SND.amb){const a=SND.amb.gain;a.cancelScheduledValues(0);a.setValueAtTime(0,t0);a.setValueAtTime(0,t0+16.2);a.linearRampToValueAtTime(1,t0+18.5);}
+  if(SND.amb){const a=SND.amb.gain;a.cancelScheduledValues(0);if(off<18.5){a.setValueAtTime(0,now);if(off<16.2)a.setValueAtTime(0,t0+16.2);a.linearRampToValueAtTime(1,Math.max(now+0.5,t0+18.5));}else a.setValueAtTime(1,now);}
   SND.dest=bus;
   // deep drone over the planet
-  for(const [f,v] of [[55,0.1],[82.4,0.06],[110.3,0.03]]){const o=c.createOscillator(),gn=c.createGain();o.frequency.value=f;
-    gn.gain.setValueAtTime(0,t0);gn.gain.linearRampToValueAtTime(v,t0+2);gn.gain.setValueAtTime(v,t0+5.5);gn.gain.linearRampToValueAtTime(0,t0+7.5);
-    o.connect(gn).connect(bus);o.start(t0);o.stop(t0+7.6);}
+  if(off<7)for(const [f,v] of [[55,0.1],[82.4,0.06],[110.3,0.03]]){const o=c.createOscillator(),gn=c.createGain();o.frequency.value=f;
+    const a1=Math.max(now+1,t0+2),a2=Math.max(a1,t0+5.5),a3=Math.max(a2+0.5,t0+7.5);
+    gn.gain.setValueAtTime(0,now);gn.gain.linearRampToValueAtTime(v,a1);gn.gain.setValueAtTime(v,a2);gn.gain.linearRampToValueAtTime(0,a3);
+    o.connect(gn).connect(bus);o.start(now);o.stop(a3+0.1);}
   // a slow, sparse melody
   [220,261.63,329.63,293.66,220,261.63,392,329.63,196,246.94,293.66,261.63,220,329.63,261.63,220].forEach((f,i)=>{
-    const t=t0+0.4+i*1.25;SND.tone(t,2.6,'triangle',f,0,0.045);SND.tone(t,2.2,'sine',f*2,0,0.014);});
+    const t=t0+0.4+i*1.25;if(!fut(t))return;SND.tone(t,2.6,'triangle',f,0,0.045);SND.tone(t,2.2,'sine',f*2,0,0.014);});
   // glacier: crack, groan, rumble, then the slab hits the water
-  for(const tc of [7.5,9.4]){const t=t0+tc;
+  for(const tc of [7.5,9.4]){const t=t0+tc;if(!fut(t))continue;
     SND.burst(t,0.09,'highpass',2600,0.7,0.5);SND.burst(t+0.05,0.12,'bandpass',900,2,0.3);SND.tone(t,1.1,'sawtooth',70,40,0.05);SND.burst(t,2.4,'lowpass',180,0.7,0.5);
     SND.burst(t+1.1,1.4,'bandpass',800,0.6,0.45,180);SND.burst(t+1.1,1.8,'lowpass',320,0.7,0.55);}
   // city: rain and rising water, one thunderclap
-  for(const [type,freq,vol,f2] of [['highpass',2600,0.07,0],['lowpass',220,0.22,800]]){
-    const s=SND.src(),f=c.createBiquadFilter(),gn=c.createGain();f.type=type;f.frequency.setValueAtTime(freq,t0+11);
-    if(f2)f.frequency.linearRampToValueAtTime(f2,t0+16);
-    gn.gain.setValueAtTime(0,t0+11);gn.gain.linearRampToValueAtTime(vol,t0+12);gn.gain.setValueAtTime(vol,t0+15.4);gn.gain.linearRampToValueAtTime(0,t0+16.6);
-    s.connect(f).connect(gn).connect(bus);s.start(t0+11,rand(1));s.stop(t0+16.8);}
-  const th=t0+12.8;SND.burst(th,0.15,'highpass',1500,0.5,0.4);SND.burst(th+0.1,3.2,'lowpass',140,0.6,0.9);SND.burst(th+0.35,2.6,'lowpass',90,0.5,0.6);
+  if(off<16)for(const [type,freq,vol,f2] of [['highpass',2600,0.07,0],['lowpass',220,0.22,800]]){
+    const s=SND.src(),f=c.createBiquadFilter(),gn=c.createGain();const b0=Math.max(now,t0+11),b1=Math.max(b0+0.5,t0+12),b2=Math.max(b1,t0+15.4),b3=Math.max(b2+0.5,t0+16.6);
+    f.type=type;f.frequency.setValueAtTime(freq,b0);if(f2)f.frequency.linearRampToValueAtTime(f2,Math.max(b0+0.5,t0+16));
+    gn.gain.setValueAtTime(0,b0);gn.gain.linearRampToValueAtTime(vol,b1);gn.gain.setValueAtTime(vol,b2);gn.gain.linearRampToValueAtTime(0,b3);
+    s.connect(f).connect(gn).connect(bus);s.start(b0,rand(1));s.stop(b3+0.2);}
+  const th=t0+12.8;if(fut(th)){SND.burst(th,0.15,'highpass',1500,0.5,0.4);SND.burst(th+0.1,3.2,'lowpass',140,0.6,0.9);SND.burst(th+0.35,2.6,'lowpass',90,0.5,0.6);}
   SND.dest=null;
-  INTRO.timers=[17.2,19.1].map(s=>setTimeout(()=>{if(INTRO.on&&INTRO.t<INTRO_LEN-INTRO_FADE)SND.gull();},s*1000));
+  INTRO.timers=[17.2,19.1].filter(s=>s>off).map(s=>setTimeout(()=>{if(INTRO.on&&INTRO.t<INTRO_LEN-INTRO_FADE)SND.gull();},(s-off)*1000));
 }
 
 function playIntro(done){
   introInit();
   const I=INTRO;Object.assign(I,{on:true,t:0,done,started:false,ps:[],rings:[],flags:{}});
   I.el=$('intro');I.cv=$('introcv');I.g=I.cv.getContext('2d');
-  I.el.style.opacity=1;I.el.classList.remove('hidden');$('start').classList.add('hidden');
-  introAudio();
+  I.el.style.opacity=1;I.el.classList.remove('hidden');$('start').classList.add('hidden');I.seen=true;
+  $('tapsound').classList.toggle('hidden',!!SND.ctx);
+  introAudio(0);
 }
 function skipIntro(){
   const I=INTRO;if(!I.on||I.t>=INTRO_LEN-INTRO_FADE)return;
@@ -1960,6 +1967,9 @@ function introFrame(dt){
   if(t>=INTRO_LEN){I.on=false;I.el.classList.add('hidden');if(I.bus){try{I.bus.disconnect();}catch(_){}}I.bus=null;}
 }
 $('skip').addEventListener('click',e=>{e.stopPropagation();skipIntro();});
+// the intro starts on page load without sound; the first tap unlocks audio and joins in at the current moment
+$('intro').addEventListener('pointerdown',()=>{if(SND.ctx||!INTRO.on)return;SND.init();$('tapsound').classList.add('hidden');
+  if(INTRO.t<INTRO_LEN-INTRO_FADE)introAudio(INTRO.t);});
 
 // menu backdrop: some floating debris
 (function(){for(let i=0;i<60;i++){const a=rand(6.3),d=rand(40,900);items.push(makeItem(Math.cos(a)*d,Math.sin(a)*d));}})();
@@ -1967,12 +1977,13 @@ $('skip').addEventListener('click',e=>{e.stopPropagation();skipIntro();});
 const saved=load();
 if(saved){$('btn-start').textContent='Continue';const n=$('btn-new');n.style.display='';n.classList.remove('hidden');}
 const freshStart=()=>{clearSave();newGame(null);toast('Drag anywhere to row toward the floating driftwood.',3600);};
-$('btn-start').addEventListener('click',()=>{SND.init();const s=load();if(s){$('start').classList.add('hidden');newGame(s);}else playIntro(freshStart);});
-$('btn-new').addEventListener('click',()=>{SND.init();playIntro(freshStart);});
+$('btn-start').addEventListener('click',()=>{SND.init();const s=load();if(s){$('start').classList.add('hidden');newGame(s);}else if(INTRO.seen){$('start').classList.add('hidden');freshStart();}else playIntro(freshStart);});
+$('btn-new').addEventListener('click',()=>{SND.init();if(INTRO.seen){$('start').classList.add('hidden');freshStart();}else playIntro(freshStart);});
 $('btn-intro').addEventListener('click',()=>{SND.init();playIntro(null);});
 $('btn-retry').addEventListener('click',()=>{SND.init();$('over').classList.add('hidden');newGame(null);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){setPaused(true);if(SND.ctx)SND.ctx.suspend();if(state==='play')save();}else if(SND.ctx&&state!=='paused')SND.ctx.resume();});
 addEventListener('pagehide',()=>{if(state==='play')save();});
+playIntro(null); // the intro plays as soon as the page opens, then the title screen appears
 requestAnimationFrame(loop);
 </script>
 </body>
