@@ -11,11 +11,10 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 
 ## Project layout
 
-- `index.html` — the entire game: HTML HUD, CSS, and one `<script>` (canvas 2D rendering + Web Audio). No build step, no dependencies
-  (only the Google Font "Pirata One" for titles).
-- `prototype3d.html` — standalone three.js look-and-feel prototype (three@0.160.0 from jsdelivr via an import map; Water and Sky
-  from three's examples). Models load from `models/` (list in `NEED`); `model(key,size)` clones and scales one, `character()` adds
-  an animated person, `weather()` mutes Kenney's bright palette. `window.proto` exposes `boat`/`ruins` for console testing.
+- `index.html` — HTML HUD, CSS, and the main classic `<script>`: all game logic, Web Audio, the intro film, and the 2D overlay
+  (mini map, floating text, joystick, low-health flashes) drawn on the transparent `#game` canvas. No build step.
+- `world3d.js` — ES module that draws the world in 3D with three.js (three@0.160.0 from jsdelivr via the import map in `index.html`;
+  Water and Sky from three's examples). It reads the game's globals every frame and never changes game state.
 - `models/` — Kenney CC0 packs (GLB + `Textures/colormap.png` + `License.txt` per pack), trimmed to the models in use.
   Only download new packs with the user's OK.
 - `manifest.webmanifest` — web app manifest (`display: fullscreen`, portrait) for home-screen installs.
@@ -32,20 +31,24 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 
 ## Code map (inside `index.html`)
 
-- **Projection:** world `x,y` (ground plane) + `z` (height) → 2:1 isometric screen via `P(wx,wy,z)`; `unP` inverts.
-  `frame(x,y,angle,z)` + `proj(frame, [lx,ly,lz])` place local-space geometry. `face()`, `box()`, `prism()` and `solidPoly()` draw
-  shaded faces with back-face culling; painter's order is by `x+y` depth.
+- **Units and projection:** game units on the sea plane (`x,y`) plus height `z`; one unit is `U` = 0.075 m in `world3d.js`, and game
+  `(x,y,z)` maps to three.js `(x*U, z*U, y*U)`. A boat-local point `(lx,ly)` sits in a group rotated by `-boat.a`. `P(wx,wy,z)` and
+  `unP(sx,sy)` project through the 3D camera (`R3D.project`/`unproject`) once `world3d.js` has loaded. The joystick and mini map use
+  `JOYK`/`MAPY` from the camera angle. `frame()`/`rot()` give boat-local to world positions for the game logic.
 - **Data tables:** `LEVELS` (boat layout per level: `rects`, `hull`, `cats`, `sternRaft`, `shack`/`tent`, crew positions `player`/`front`/
   `fisher`/`farmer`, `motor` x position), `COSTS` (upgrade cost per target level), `DESC` (upgrade messages), `ZOOMS`,
   `RESCUES` (levels whose next step is rescuing a stranded person instead of paying), `MAXLEVEL`, `MAP_LEVEL`.
 - **`QUICK_TEST`** (top of the data section): `true` makes upgrades cheap and rescues spawn fast for testing.
   Set to `false` for real balance before launch.
 - **Crew:** `crewList(L)` returns everyone on board with their role (`row`, `motor`, `none` = grappler, `fish`, `farm`);
-  `drawPerson()` draws people (styles `STYLE1`–`STYLE4`), including the faint and fall-overboard death animation (`dieT`).
+  `world3d.js` gives crew index 0–3 a Kenney character (`CHAR`) with animations (sit, holding, throw, pick-up, die) and plays the
+  fall-overboard death from `fallTime`/`fallDest` (`dieT`).
 - **Systems in `update(dt)`:** health drain + heartbeat (`LOW`/`CRIT`), movement and rowing/motor, ruins collision, items
   (spawn/despawn ring around the boat), grapple (`G`), fishing (`FISH`), rescues (`survivorT`, `spawnSurvivor`), particles, gulls, fish schools.
-- **Rendering in `render()`:** sea and waves → ripples → fish → sorted scene (ruins, items, boat) → rope/fishing line → particles → gulls →
-  text → haze/vignette → mini map → low-health overlays → joystick.
+- **Rendering:** `render()` calls `R3D.render()` (world3d.js: camera follow + zoom, water, boat rebuilt from `LEVELS[level]` by
+  `buildBoat()`, items/ruins/gulls/fish/particles synced to the game arrays each frame), then draws the 2D overlay on top.
+- **3D models:** `NEED` in world3d.js lists the GLBs to load; `fitModel(key,x,y,z)` clones one fitted to a size in metres;
+  `weather()` mutes Kenney's palette; buildings get `grimy()` materials. Procedural props: tomato pot, outboard motor, gulls, junk.
 - **Intro film:** `INTRO`, `playIntro(done)`, `introFrame(dt)` and one draw function per scene (`ISCENES`, captions in `ICAPS`),
   drawn on its own canvas (`#introcv`) from the main loop. Its sounds go through `SND.dest` = an intro bus; the ocean ambience sits
   on `SND.amb` so the intro can hold it back until the last scene. Plays automatically on page load with sound on by default (`tryIntroSound` starts audio at once;
@@ -57,5 +60,5 @@ Guidance for Claude Code when working on **Shanty Boat**, a mobile-first isometr
 ## Conventions
 
 - Mobile first: touch joystick anywhere, HUD in HTML overlays (pointer-events only on buttons), safe-area insets respected.
-- Draw everything procedurally (no image assets); keep new art in the same flat, muted post-apocalyptic palette.
+- 3D art comes from the Kenney packs in `models/` plus simple procedural props; keep the muted, weathered post-apocalyptic look.
 - Adding a level: add an entry to `LEVELS`, `DESC`, `ZOOMS`, either `COSTS` or `RESCUES`, bump `MAXLEVEL`, and update the README table.

@@ -16,11 +16,10 @@ python -m http.server 8765
 Then open `http://localhost:8765`. To play on a phone, open `http://<your-computer-ip>:8765` on the same Wi-Fi.
 Sound starts after the first tap (browsers require a user gesture).
 
-## 3D prototype
+## Graphics
 
-`prototype3d.html` is a look-and-feel test of a three.js version: low-poly models, reflective water, real shadows, a camera
-that follows the boat, rowing, grappling and drowned buildings. Switch between raft, shack and catamaran with the buttons at
-the top.
+The world is drawn in 3D with [three.js](https://threejs.org) (`world3d.js`): reflective water, real shadows, animated crew,
+and drowned buildings. The HUD, mini map and floating text are drawn on a 2D layer on top.
 
 Models in `models/` are from [Kenney](https://kenney.nl) (Pirate Kit, Survival Kit, City Kit Commercial, Mini Characters),
 licensed CC0 (public domain). Each pack's `License.txt` is kept alongside its models.
