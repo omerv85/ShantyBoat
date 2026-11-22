@@ -42,7 +42,7 @@ game's own 3D models.
 - **Pause** with the pause button (or P / Esc). The game also pauses when you switch away from the tab.
 - **Full screen:** on phones the game goes full screen on your first touch; the bottom-left button re-enters it.
   iPhone Safari doesn't support full screen for web pages, so on iPhone use Share → Add to Home Screen instead.
-- **Upgrade Home** shows the cost and glows when you can afford it (chainsaw and hammer sounds included).
+- **Upgrade** shows the cost and glows when you can afford it (chainsaw and hammer sounds included).
 - **Wildlife:** gulls perch on floating junk and fly off when you get close; schools of fish swim through and scatter from the boat.
 
 ### Shanty levels

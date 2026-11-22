@@ -580,7 +580,7 @@ function updateHUD(){
   const c=COSTS[level+1],ks=Object.keys(c),ready=ks.every(k=>inv[k]>=c[k]);
   const key=level+'|'+ks.map(k=>inv[k]).join('|');
   if(key!==upKey){upKey=key;
-    ub.innerHTML=`<div class="t">${level+1===7?'⚙ Add a Motor':level+1===5?'🧭 Add a Mini Map':'⚒ Upgrade Home'}</div><div class="c">`+
+    ub.innerHTML=`<div class="t">${level+1===7?'⚙ Add a Motor':level+1===5?'🧭 Add a Mini Map':'⚒ Upgrade'}</div><div class="c">`+
       ks.map(k=>`<span class="${inv[k]>=c[k]?'ok':''}">${ICONS[k]}${Math.min(inv[k],c[k])}/${c[k]}</span>`).join('')+`</div>`;
     ub.classList.toggle('ready',ready);ub.classList.remove('hidden');}
 }
